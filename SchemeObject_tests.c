@@ -304,18 +304,30 @@ void test8() {
 	return;
 }
 
-/* not really working alright, needs to be debugged */
 void test9() {
-	printf("-----test9-----\n");
-	MemorySpace * ms = make_MemorySpace(100000);
-	SchemeObject * env = SchemeObject_make_pair(ms, make_base_parser_frame(ms), make_base_environment(ms));
+	printf("-----test9 : whitespace? and empty? -----\n");
+	MemorySpace * ms = make_MemorySpace(DEFAULT_MEMORY_FOR_MACHINE);
+	SchemeObject * env = make_base_parser_environment(ms);
 	
-	SchemeObject * L = SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "parse"), SchemeObject_make_string(ms, "(+ 1 2)"));
+	SchemeObject * Lt = SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "whitespace?"), SchemeObject_make_char(ms, ' '));
+	SchemeObject * Lf = SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "whitespace?"), SchemeObject_make_char(ms, 'd'));
+	assert(SchemeObject_eq(SchemeObject_make_special_symbol_s(ms, TRUE), evaluate(ms, Lt, env)));
+	assert(SchemeObject_eq(SchemeObject_make_special_symbol_s(ms, FALSE), evaluate(ms, Lf, env)));
 	
-	SchemeObject_print(evaluate(ms, L, env));
-	printf("\n");
+	assert(SchemeObject_eq(SchemeObject_make_special_symbol_s(ms, TRUE), SchemeObject_make_special_symbol_s(ms, TRUE)));
+	assert(SchemeObject_eq(SchemeObject_make_special_symbol_s(ms, FALSE), SchemeObject_make_special_symbol_s(ms, FALSE)));
 	
-	//assert(SchemeObject_eq(output, SchemeObject_make_integer(ms, -13)));
+	SchemeObject * emptyQ_test_t = SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "empty?"), SchemeObject_make_empty(ms));
+	SchemeObject * emptyQ_test_f = SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "empty?"), SchemeObject_make_list_3(ms, SchemeObject_make_special_symbol_s(ms, QUOTE), SchemeObject_make_integer(ms, 634), SchemeObject_make_integer(ms, 997)));
+	assert(SchemeObject_is_empty(SchemeObject_make_empty(ms)));
+	assert(!SchemeObject_is_empty(SchemeObject_make_list_2(ms, SchemeObject_make_integer(ms, 1), SchemeObject_make_integer(ms, 1))));
+
+	assert(SchemeObject_eq(SchemeObject_make_special_symbol_s(ms, TRUE), SchemeObject_make_bool(ms, 1)));
+	assert(SchemeObject_eq(SchemeObject_make_special_symbol_s(ms, TRUE), SchemeObject_make_bool(ms, -1)));
+	assert(SchemeObject_eq(SchemeObject_make_special_symbol_s(ms, FALSE), SchemeObject_make_bool(ms, 0)));
+	
+	assert(SchemeObject_eq(SchemeObject_make_special_symbol_s(ms, TRUE), evaluate(ms, emptyQ_test_t, env)));
+	assert(SchemeObject_eq(SchemeObject_make_special_symbol_s(ms, FALSE), evaluate(ms, emptyQ_test_f, env)));
 	
 	ms->destroy(ms);
 	return;
@@ -335,6 +347,249 @@ void test10() {
 	
 	assert(SchemeObject_eq(SchemeObject_make_integer(ms, 3), evaluate(ms, L3, env)));
 	assert(SchemeObject_eq(SchemeObject_make_integer(ms, 5), evaluate(ms, L5, env)));
+	
+	ms->destroy(ms);
+	return;
+}
+
+/* not used for anything except to check that recursion works like it should */
+SchemeObject * make_basic_recursion_test_environment(MemorySpace * ms) {
+	
+	SchemeObject * env = SchemeObject_make_pair(ms, SchemeObject_make_empty(ms), make_base_environment(ms));
+
+	/*
+	(define f
+	 	(lambda (x y) (if (eq? x 1)
+					   	y
+	 					(g (+ x -1) (* 2 y)))))
+	*/
+	SchemeObject * f = evaluate(ms, SchemeObject_make_list_3(ms, SchemeObject_make_special_symbol_s(ms, LAMBDA), SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "x"), SchemeObject_make_symbol(ms, "y")),
+															 	 SchemeObject_make_list_4(ms, SchemeObject_make_special_symbol_s(ms, IF), 	SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "eq?"), SchemeObject_make_symbol(ms, "x"), SchemeObject_make_integer(ms, 1)),
+																												  							SchemeObject_make_symbol(ms, "y"),
+																																			SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "g"), SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "+"), SchemeObject_make_integer(ms, -1), SchemeObject_make_symbol(ms, "x")), SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "*"), SchemeObject_make_integer(ms, 2), SchemeObject_make_symbol(ms, "y")))
+																						  )), env);
+	/*
+	 (define g
+	 	(lambda (x y) (if (eq? x 1)
+	 					y
+						(f (+ x -1) (* 3 y)))))
+	 */
+	SchemeObject * g = evaluate(ms, SchemeObject_make_list_3(ms, SchemeObject_make_special_symbol_s(ms, LAMBDA), SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "x"), SchemeObject_make_symbol(ms, "y")),
+															 SchemeObject_make_list_4(ms, SchemeObject_make_special_symbol_s(ms, IF), 	SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "eq?"), SchemeObject_make_symbol(ms, "x"), SchemeObject_make_integer(ms, 1)),
+																					  SchemeObject_make_symbol(ms, "y"),
+																					  SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "f"), SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "+"), SchemeObject_make_integer(ms, -1), SchemeObject_make_symbol(ms, "x")), SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "*"), SchemeObject_make_integer(ms, 3), SchemeObject_make_symbol(ms, "y")))
+																					  )), env);
+	
+	
+	SchemeObject * frame =	SchemeObject_make_list_2(ms, 	SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "f"), f),
+															SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "g"), g));
+	
+	SchemeObject_copy(ms, SchemeObject_list_ref_n(env, 1), frame);
+	return env;
+}
+
+void test11() {
+	printf("----- test11 : basic recursivity with hard-coded environment -----\n");
+	MemorySpace * ms = make_MemorySpace(DEFAULT_MEMORY_FOR_MACHINE);
+	SchemeObject * env = make_basic_recursion_test_environment(ms);
+	
+	SchemeObject * A = SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "f"), SchemeObject_make_integer(ms, 5), SchemeObject_make_integer(ms, 3));
+	SchemeObject * B = SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "f"), SchemeObject_make_integer(ms, 4), SchemeObject_make_integer(ms, -2));
+												 
+	assert(SchemeObject_eq(SchemeObject_make_integer(ms, 108), evaluate(ms, A, env)));
+	assert(SchemeObject_eq(SchemeObject_make_integer(ms, -24), evaluate(ms, B, env)));
+	
+	ms->destroy(ms);
+	return;
+}
+
+void test12() {
+	printf("----- test12 : more difficult lambda expressions to debug some problem with environment lookups -----\n");
+	MemorySpace * ms = make_MemorySpace(DEFAULT_MEMORY_FOR_MACHINE);
+	SchemeObject * env = make_base_environment(ms);
+	
+	/*
+	 	f = (lambda (X) (display X) ((lambda (X) (* 7 X)) (+ 1 X)))
+	 */
+	
+	SchemeObject * f = evaluate(ms, SchemeObject_make_list_4(ms, SchemeObject_make_special_symbol_s(ms, LAMBDA), SchemeObject_make_list_1(ms, SchemeObject_make_symbol(ms, "X")),
+															 SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "display"), SchemeObject_make_symbol(ms, "X")),
+															 SchemeObject_make_list_2(ms,
+																					  SchemeObject_make_list_3(ms, SchemeObject_make_special_symbol_s(ms, LAMBDA), SchemeObject_make_list_1(ms, SchemeObject_make_symbol(ms, "X")),
+																											   SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "*"), SchemeObject_make_integer(ms, 7), SchemeObject_make_symbol(ms, "X"))),
+																					  SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "+"), SchemeObject_make_integer(ms, 1), SchemeObject_make_symbol(ms, "X")))
+															 ), env);
+	
+	assert(SchemeObject_eq(SchemeObject_make_integer(ms, 14), evaluate(ms, SchemeObject_make_list_2(ms, f, SchemeObject_make_integer(ms, 1)), env)));
+   	assert(SchemeObject_eq(SchemeObject_make_integer(ms, 42), evaluate(ms, SchemeObject_make_list_2(ms, f, SchemeObject_make_integer(ms, 5)), env)));						   
+	
+	ms->destroy(ms);
+	return;
+}
+
+void test13() {
+	printf("----- test13 : define and set! -----\n");
+	MemorySpace * ms = make_MemorySpace(DEFAULT_MEMORY_FOR_MACHINE);
+	SchemeObject * env = make_base_environment(ms);
+	
+	/*
+	 f = (lambda () (define X -2) (define Y 7) (+ X Y))
+	 */
+	SchemeObject * f = evaluate(ms, SchemeObject_make_list_5(ms, SchemeObject_make_special_symbol_s(ms, LAMBDA), SchemeObject_make_empty(ms),
+															 SchemeObject_make_list_3(ms, SchemeObject_make_special_symbol_s(ms, DEFINE), SchemeObject_make_symbol(ms, "X"), SchemeObject_make_integer(ms, -2)),
+															 SchemeObject_make_list_3(ms, SchemeObject_make_special_symbol_s(ms, DEFINE), SchemeObject_make_symbol(ms, "Y"), SchemeObject_make_integer(ms, 7)),
+															 SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "+"), SchemeObject_make_symbol(ms, "X"), SchemeObject_make_symbol(ms, "Y"))), env);
+	assert(SchemeObject_eq(SchemeObject_make_integer(ms, 5), evaluate(ms, SchemeObject_make_list_1(ms, f), env)));
+	
+	
+	/*
+	 g = (lambda () (define X -2) (display "X : " X) (newline) (set! X 7) (+ X X))
+	 */
+	SchemeObject * g = evaluate(ms, SchemeObject_make_list_7(ms,
+															 SchemeObject_make_special_symbol_s(ms, LAMBDA),
+															 SchemeObject_make_empty(ms),
+															 SchemeObject_make_list_3(ms, SchemeObject_make_special_symbol_s(ms, DEFINE), SchemeObject_make_symbol(ms, "X"), SchemeObject_make_integer(ms, -2)),
+															 SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "display"), SchemeObject_make_string(ms, "X : "), SchemeObject_make_symbol(ms, "X")),
+															 SchemeObject_make_list_1(ms, SchemeObject_make_symbol(ms, "newline")),
+															 SchemeObject_make_list_3(ms, SchemeObject_make_special_symbol_s(ms, SET), SchemeObject_make_symbol(ms, "X"), SchemeObject_make_integer(ms, 7)),
+															 SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "+"), SchemeObject_make_symbol(ms, "X"), SchemeObject_make_symbol(ms, "X"))), env);
+	assert(SchemeObject_eq(SchemeObject_make_integer(ms, 14), evaluate(ms, SchemeObject_make_list_1(ms, g), env)));
+	
+	
+	ms->destroy(ms);
+	return;
+}
+
+void test14() {
+	printf("-----test14 : counting characters -----\n");
+	MemorySpace * ms = make_MemorySpace(DEFAULT_MEMORY_FOR_MACHINE);
+	SchemeObject * env = make_base_environment(ms);
+	
+	SchemeObject * definition = SchemeObject_make_list_3(ms, 	SchemeObject_make_special_symbol_s(ms, DEFINE),
+																SchemeObject_make_symbol(ms, "count-char"),
+														 		SchemeObject_make_list_3(ms,	SchemeObject_make_special_symbol_s(ms, LAMBDA),
+																						 		SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "L"), SchemeObject_make_symbol(ms, "character"), SchemeObject_make_symbol(ms, "accum")),
+																						 		SchemeObject_make_list_4(ms, SchemeObject_make_special_symbol_s(ms, IF),	SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "empty?"), SchemeObject_make_symbol(ms, "L")),
+																														 												SchemeObject_make_symbol(ms, "accum"),
+																																										SchemeObject_make_list_4(ms, SchemeObject_make_special_symbol_s(ms, IF),	SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "eq?"), SchemeObject_make_symbol(ms, "character"), SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "car"), SchemeObject_make_symbol(ms, "L"))),
+																																				  																								SchemeObject_make_list_4(ms, SchemeObject_make_symbol(ms, "count-char"), SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "cdr"), SchemeObject_make_symbol(ms, "L")), SchemeObject_make_symbol(ms, "character"), SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "+"), SchemeObject_make_symbol(ms, "accum"), SchemeObject_make_integer(ms, 1))),
+																																																												SchemeObject_make_list_4(ms, SchemeObject_make_symbol(ms, "count-char"), SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "cdr"), SchemeObject_make_symbol(ms, "L")), SchemeObject_make_symbol(ms, "character"), SchemeObject_make_symbol(ms, "accum"))
+																																																 ))));
+	
+	SchemeObject * L = SchemeObject_make_list_1(ms, SchemeObject_make_list_5(ms, 	SchemeObject_make_special_symbol_s(ms, LAMBDA),
+																			 		SchemeObject_make_empty(ms),
+																			 		definition,
+																					SchemeObject_make_list_3(ms, 	SchemeObject_make_special_symbol_s(ms, DEFINE),
+																											  		SchemeObject_make_symbol(ms, "str"),
+																											  		SchemeObject_make_string(ms, "Le baobab est barbu.")),
+																			 		SchemeObject_make_list_4(ms,	SchemeObject_make_symbol(ms, "count-char"),
+																													SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "string->list"), SchemeObject_make_symbol(ms, "str")),	
+																													SchemeObject_make_char(ms, 'a'),
+																											 		SchemeObject_make_integer(ms, 0))));
+	
+
+	assert(SchemeObject_eq(SchemeObject_make_integer(ms, 3), evaluate(ms, L, env)));
+
+	ms->destroy(ms);
+	return;
+}
+
+void test15() {
+	printf("-----test15 : assert, list, cons, car, cdr -----\n");
+	MemorySpace * ms = make_MemorySpace(DEFAULT_MEMORY_FOR_MACHINE);
+	SchemeObject * env = make_base_environment(ms);
+	
+	/*
+	 (assert #t)
+	 (assert (not #f))
+	 */
+
+	SchemeObject * L = SchemeObject_make_list_1(ms, SchemeObject_make_list_4(ms, 	SchemeObject_make_special_symbol_s(ms, LAMBDA),
+																			 		SchemeObject_make_empty(ms),
+																			 		SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "assert"), SchemeObject_make_special_symbol_s(ms, TRUE)),
+																					SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "assert"), SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "not"), SchemeObject_make_special_symbol_s(ms, FALSE)))
+																			 ));
+	evaluate(ms, L, env);
+	
+	
+	/*
+	 (define A (cons 1 (cons 2 (cons 3 empty))))
+	 (assert (eq? (car A) 1))
+	 (assert (eq? (car (cdr A)) 2))
+	 */
+	L = SchemeObject_make_list_1(ms, SchemeObject_make_list_5(ms, 	SchemeObject_make_special_symbol_s(ms, LAMBDA),
+															  SchemeObject_make_empty(ms),
+															  SchemeObject_make_list_3(ms, SchemeObject_make_special_symbol_s(ms, DEFINE), SchemeObject_make_symbol(ms, "A"), 	SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "cons"), SchemeObject_make_integer(ms, 1),
+																																												SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "cons"), SchemeObject_make_integer(ms, 2),
+																																												SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "cons"), SchemeObject_make_integer(ms, 3),
+																																												SchemeObject_make_empty(ms))))),
+															  SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "assert"), SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "eq?"), SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "car"), SchemeObject_make_symbol(ms, "A")), SchemeObject_make_integer(ms, 1))),
+															  SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "assert"), SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "eq?"), SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "car"), SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "cdr"), SchemeObject_make_symbol(ms, "A"))), SchemeObject_make_integer(ms, 2)))
+															  ));
+	evaluate(ms, L, env);
+	
+	/*
+	 (define A (list 1 2 3))
+	 (assert (eq? (car A) 1))
+	 (assert (eq? (car (cdr A)) 2))
+	 */
+	L = SchemeObject_make_list_1(ms, SchemeObject_make_list_5(ms, 	SchemeObject_make_special_symbol_s(ms, LAMBDA),
+															  SchemeObject_make_empty(ms),
+															  SchemeObject_make_list_3(ms, SchemeObject_make_special_symbol_s(ms, DEFINE), SchemeObject_make_symbol(ms, "A"), SchemeObject_make_list_4(ms, SchemeObject_make_symbol(ms, "list"), SchemeObject_make_integer(ms, 1), SchemeObject_make_integer(ms, 2), SchemeObject_make_integer(ms, 3))),
+															  SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "assert"), SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "eq?"), SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "car"), SchemeObject_make_symbol(ms, "A")), SchemeObject_make_integer(ms, 1))),
+															  SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "assert"), SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "eq?"), SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "car"), SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "cdr"), SchemeObject_make_symbol(ms, "A"))), SchemeObject_make_integer(ms, 2)))
+															  ));
+	evaluate(ms, L, env);
+	
+	//assert(SchemeObject_eq(SchemeObject_make_integer(ms, 3), evaluate(ms, L, env)));
+	
+	ms->destroy(ms);
+	return;
+}
+
+void test16() {
+	printf("-----test16 : parse -----\n");
+	MemorySpace * ms = make_MemorySpace(DEFAULT_MEMORY_FOR_MACHINE);
+	SchemeObject * env = make_base_parser_environment(ms);
+	
+	SchemeObject * L, * M;
+	
+	//
+	/*
+	L = SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms,"parse"),
+												SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "string->list"), SchemeObject_make_string(ms, "(lambda (x) (+ 1 x))")));
+	SchemeObject_print(evaluate(ms, L, env));
+	*/
+	//
+	
+	/*  (lambda (x) (+ 1 x)) -> (lambda (x) (+ 1 x))   */
+	L = SchemeObject_make_list_5(ms, 	SchemeObject_make_symbol(ms,"read-next-token"),
+								 		SchemeObject_make_empty(ms),
+										SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "string->list"), SchemeObject_make_string(ms, "(lambda (x) (+ 1 x))")),
+										SchemeObject_make_integer(ms, 0),
+								 		SchemeObject_make_special_symbol_s(ms, TRUE)
+								 );
+	M = SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "list->string"), SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "car"), L));
+	
+	assert(SchemeObject_eq(SchemeObject_make_string(ms, "(lambda (x) (+ 1 x))"), evaluate(ms, M, env)));
+	
+	/*  lambda (x) (+ 1 x)) -> lambda   */
+	L = SchemeObject_make_list_5(ms, 	SchemeObject_make_symbol(ms,"read-next-token"),
+								 SchemeObject_make_empty(ms),
+								 SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "string->list"), SchemeObject_make_string(ms, "lambda (x) (+ 1 x)")),
+								 SchemeObject_make_integer(ms, 0),
+								 SchemeObject_make_special_symbol_s(ms, TRUE)
+								 );
+	M = SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "list->string"), SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "car"), L));
+	SchemeObject_print(evaluate(ms, M, env));
+	
+	//assert(SchemeObject_eq(SchemeObject_make_string(ms, "lambda"), evaluate(ms, M, env)));
+	
+	
+	//printf("\n");
+	//SchemeObject_print(evaluate(ms, M, env));
+	
+	//assert(SchemeObject_eq(SchemeObject_make_integer(ms, 3), evaluate(ms, L, env)));
 	
 	ms->destroy(ms);
 	return;

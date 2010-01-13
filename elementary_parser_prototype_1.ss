@@ -23,7 +23,7 @@
                     (read-next-token added remaining parencount #f))
                 (cond ((eq? (car L) #\( ) (read-next-token added remaining (+ parencount 1) #f))
                       ((eq? (car L) #\) ) (read-next-token added remaining (- parencount 1) #f))
-                      (#t (read-next-token added remaining parencount #f))
+                      (#t (rquitead-next-token added remaining parencount #f))
                       ))))))
 
 (define (analyze-atomic-element E)

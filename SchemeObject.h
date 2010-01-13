@@ -15,7 +15,7 @@
 #include <stdio.h>
 #include "SchemeObject_tests.h"
 
-#define DEFAULT_MEMORY_FOR_MACHINE 100000
+#define DEFAULT_MEMORY_FOR_MACHINE 10000000
 
 struct _SchemeObject;
 
@@ -137,6 +137,9 @@ SchemeObject * SchemeObject_make_list_2(MemorySpace * ms, SchemeObject * A, Sche
 SchemeObject * SchemeObject_make_list_3(MemorySpace * ms, SchemeObject * A, SchemeObject * B, SchemeObject * C);
 SchemeObject * SchemeObject_make_list_4(MemorySpace * ms, SchemeObject * A, SchemeObject * B, SchemeObject * C, SchemeObject * D);
 SchemeObject * SchemeObject_make_list_5(MemorySpace * ms, SchemeObject * A, SchemeObject * B, SchemeObject * C, SchemeObject * D, SchemeObject * E);
+SchemeObject * SchemeObject_make_list_6(MemorySpace * ms, SchemeObject * A, SchemeObject * B, SchemeObject * C, SchemeObject * D, SchemeObject * E, SchemeObject * F);
+SchemeObject * SchemeObject_make_list_7(MemorySpace * ms, SchemeObject * A, SchemeObject * B, SchemeObject * C, SchemeObject * D, SchemeObject * E, SchemeObject * F, SchemeObject * G);
+
 
 SchemeObject * frame_binding_lookup(SchemeObject * frame, SchemeObject * symbol);
 SchemeObject * env_binding_lookup(SchemeObject * env, SchemeObject * symbol);
@@ -151,7 +154,7 @@ SchemeObject * evaluate(MemorySpace * ms, SchemeObject * expr, SchemeObject * en
 SchemeObject * sum_wrapper(MemorySpace *ms, SchemeObject * L);
 
 SchemeObject * make_base_environment(MemorySpace * ms);
-SchemeObject * make_base_parser_frame(MemorySpace * ms);
+SchemeObject * make_base_parser_environment(MemorySpace * ms);
 
 #endif
 

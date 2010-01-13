@@ -196,6 +196,9 @@ int SchemeObject_is_symbol(SchemeObject * E) {
 	return ((E != NULL) && (E->type == SYMBOL));
 }
 int SchemeObject_is_empty(SchemeObject * E) {
+	if (E == NULL)
+		printf("passed a NULL pointer into SchemeObject_is_empty(...)\n");
+	
 	return ((E != NULL) && (E->type == EMPTY));
 }
 int SchemeObject_is_atomic_function(SchemeObject * E) {
@@ -230,6 +233,7 @@ int SchemeObject_is_self_evaluating(SchemeObject * E) {
 	result |= SchemeObject_is_string(E);
 	result |= SchemeObject_is_char(E);
 	result |= SchemeObject_is_special_symbol(E);
+	result |= SchemeObject_is_empty(E);
 	/* 	These functions are already evaluated in the sense
 	 	that they are ready to be applied to something. */
 	result |= SchemeObject_is_atomic_function(E);
@@ -263,7 +267,13 @@ int SchemeObject_eq(SchemeObject * x, SchemeObject * y) {
 		return SchemeObject_eq_memorychunks(x,y);
 	else if (SchemeObject_is_char(x) && SchemeObject_is_char(y))
 		return (SchemeObject_get_char(x) == SchemeObject_get_char(y));
-
+	else if (SchemeObject_is_special_symbol(x) && SchemeObject_is_special_symbol(y))
+		return (x->data.val_special_symbol == y->data.val_special_symbol);
+	else if (SchemeObject_is_empty(x) && SchemeObject_is_empty(y))
+		return 1;
+	
+	printf("We are comparing two objects of a different type !\n");
+	
 	/* if everything failed */
 	return 0;
 }
@@ -276,7 +286,7 @@ void SchemeObject_print(SchemeObject * E) {
 	else if (SchemeObject_is_double(E))
 		printf("%f", SchemeObject_get_double(E));
 	else if (SchemeObject_is_empty(E))
-		printf("()");
+		printf("{empty}");
 	else if (SchemeObject_is_string(E) || SchemeObject_is_symbol(E)) {
 		char * str = E->data.val_memorychunk.data;
 		int i;
@@ -480,6 +490,29 @@ SchemeObject * SchemeObject_make_list_5(MemorySpace * ms, SchemeObject * A, Sche
 	return result;	
 }
 
+SchemeObject * SchemeObject_make_list_6(MemorySpace * ms, SchemeObject * A, SchemeObject * B, SchemeObject * C, SchemeObject * D, SchemeObject * E, SchemeObject * F) {
+	SchemeObject * result = SchemeObject_make_list_n(ms, 6);
+	SchemeObject_copy(ms, SchemeObject_list_ref_n(result,1), A);
+	SchemeObject_copy(ms, SchemeObject_list_ref_n(result,2), B);
+	SchemeObject_copy(ms, SchemeObject_list_ref_n(result,3), C);
+	SchemeObject_copy(ms, SchemeObject_list_ref_n(result,4), D);
+	SchemeObject_copy(ms, SchemeObject_list_ref_n(result,5), E);
+	SchemeObject_copy(ms, SchemeObject_list_ref_n(result,6), F);
+	return result;	
+}
+
+SchemeObject * SchemeObject_make_list_7(MemorySpace * ms, SchemeObject * A, SchemeObject * B, SchemeObject * C, SchemeObject * D, SchemeObject * E, SchemeObject * F, SchemeObject * G) {
+	SchemeObject * result = SchemeObject_make_list_n(ms, 7);
+	SchemeObject_copy(ms, SchemeObject_list_ref_n(result,1), A);
+	SchemeObject_copy(ms, SchemeObject_list_ref_n(result,2), B);
+	SchemeObject_copy(ms, SchemeObject_list_ref_n(result,3), C);
+	SchemeObject_copy(ms, SchemeObject_list_ref_n(result,4), D);
+	SchemeObject_copy(ms, SchemeObject_list_ref_n(result,5), E);
+	SchemeObject_copy(ms, SchemeObject_list_ref_n(result,6), F);
+	SchemeObject_copy(ms, SchemeObject_list_ref_n(result,7), G);
+	return result;	
+}
+
 SchemeObject * frame_binding_lookup(SchemeObject * frame, SchemeObject * symbol) {
 
 	SchemeObject * binding;
@@ -617,6 +650,16 @@ SchemeObject * execute(MemorySpace * ms, SchemeObject * location) {
 		/* Not handling (semiquote ... (unquote ...) ). */
 		if( SchemeObject_is_symbol(expr) ) {
 			SchemeObject * value = env_value_lookup(env, expr);
+			/* 	Keeping the code light is a good thing, but this is a serious error that
+			 	justifies suspending everything to examine the environment.
+			 */
+			if (value == NULL) {
+				printf("We couldn't find the value for ");
+				SchemeObject_print(expr);
+				printf(" in the environment.\nHere is a complete description of the environment.\n");
+				SchemeObject_print(env);
+				printf("\n");
+			};
 			assert(value != NULL);
 			SchemeObject_copy(ms, output, value);
 			#ifdef DEBUG_EXECUTE
@@ -729,7 +772,7 @@ SchemeObject * execute(MemorySpace * ms, SchemeObject * location) {
 				SchemeObject * binding = frame_binding_lookup(frame, name);
 				
 				SchemeObject * output_defined_to;
-				if( !binding )
+				if( binding )
 					output_defined_to = SchemeObject_second(binding);
 				else {
 					output_defined_to = SchemeObject_make_empty(ms);
@@ -804,7 +847,10 @@ SchemeObject * execute(MemorySpace * ms, SchemeObject * location) {
 		SchemeObject * L_ai = SchemeObject_reverse_reference_list(ms, expr);
 		SchemeObject * junk = NULL;
 		
-		/* do the first case manually */
+		/* 	Do the first case manually, because it's the one that will have its output kept.
+		 	For example, in (lambda () 1 2 3) we are keeping 3 as output. Here the order of stacking is
+		 	reversed so 1 is evaluated before 2 and 3, but 3 determines the output.
+		 */
 		next_task = SchemeObject_make_exec_eval(ms, SchemeObject_first(L_ai), env, output, next_task);
 		#ifdef DEBUG_EXECUTE
 			printf("added one more eval task to the stack : ");
@@ -812,6 +858,8 @@ SchemeObject * execute(MemorySpace * ms, SchemeObject * location) {
 			printf("\n");
 			printf("next_task is now %p\n", next_task);
 		#endif
+		L_ai = SchemeObject_rest(L_ai);
+		
 		if (length >= 2)
 			junk = SchemeObject_make_empty(ms);
 		
@@ -863,8 +911,14 @@ int main() {
 	test6();
 	test7();
 	test8();*/
-	test9();
 	test10();
+	test11();
+	test9();
+	test12();
+	test13();
+	test14();
+	test15();
+	test16();
 	
 	return 0;
 }

@@ -8,8 +8,7 @@ test_MemorySpace : MemorySpace.c
 SchemeObject.o : SchemeObject.c
 	gcc -c -Wall SchemeObject.c
 
-test_SchemeObject : SchemeObject.c MemorySpace.c
-	gcc -D TEST_SCHEMEOBJECT_ALONE -Wall MemorySpace.c SchemeObject.c -o test_SchemeObject
-	
-	
+test_SchemeObject : SchemeObject.c SchemeObject.h MemorySpace.c MemorySpace.h SchemeObject_tests.c SchemeObject_tests.h atomic_functions.c
 	gcc -g -D TEST_SCHEMEOBJECT_ALONE -D DEBUG_EXECUTE -D DEBUG_MEMORYSPACE -Wall MemorySpace.c SchemeObject_tests.c atomic_functions.c SchemeObject.c -o test_SchemeObject
+	
+	
