@@ -8,7 +8,7 @@
 #include <ctype.h> // for isdigit(char c);
 
 SchemeObject * sum_wrapper(MemorySpace *ms, SchemeObject * L) {
-	printf("called sum_wrapper\n");
+	//printf("called sum_wrapper\n");
 	int i_total = 0;
 	double d_total = 0;
 	int using_integers = 1; // for lack of boolean
@@ -48,7 +48,7 @@ SchemeObject * sum_wrapper(MemorySpace *ms, SchemeObject * L) {
  	Better have a strange name than to change the code for a weak reason.
  */
 SchemeObject * product_wrapper(MemorySpace *ms, SchemeObject * L) {
-	printf("called product_wrapper\n");
+	//printf("called product_wrapper\n");
 	int i_total = 1;
 	double d_total = 1;
 	int using_integers = 1; // for lack of boolean
@@ -205,6 +205,7 @@ SchemeObject * string_to_list_wrapper(MemorySpace * ms, SchemeObject * L) {
 	int len = E->data.val_memorychunk.size;
 	assert(len!=0);
 	
+	/* is the copying necessary ? */
 	char * str = malloc(sizeof(char)*(len+1));
 	strncpy(str, E->data.val_memorychunk.data, len);
 	str[len] = '\0';
@@ -226,6 +227,15 @@ SchemeObject * list_to_string_wrapper(MemorySpace * ms, SchemeObject * L) {
 	
 	int i;
 	for(i=0;i<len;++i) {
+		if( !SchemeObject_is_pair(E) || !SchemeObject_is_char(SchemeObject_car(E))) {
+			printf("len=%d\n", len);
+			printf("Wrong object send to list_to_string_wrapper : ");
+			SchemeObject_print_details(SchemeObject_car(L));
+			printf("\n");
+			printf("Crashed when reaching : ");
+			SchemeObject_print_details(SchemeObject_car(E));
+			printf("\n");
+		}
 		assert(SchemeObject_is_pair(E));
 		assert(SchemeObject_is_char(SchemeObject_car(E)));
 		str[i] = SchemeObject_get_char(SchemeObject_car(E));
@@ -349,7 +359,7 @@ SchemeObject * analyze_atomic_string_token(MemorySpace * ms, SchemeObject * L) {
 		result = SchemeObject_make_char(ms, '\t');
 	} else if ( (len >= 2) && (str[0] == '\"') && (str[len-1] == '\"') ) {
 		str[len-1] = '\0';
-		result = SchemeObject_make_string(ms, str);
+		result = SchemeObject_make_string(ms, str+1); /* str+1 to ignore the first " */
 	} else if (isdigit(str[0]) || (str[0] == '-')) {
 		if (atoi(str) == strtod(str, NULL))
 			result = SchemeObject_make_integer(ms, atoi(str));
@@ -430,7 +440,7 @@ SchemeObject * make_base_parser_environment(MemorySpace * ms) {
 																		SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "eq?"), SchemeObject_make_symbol(ms, "A"), SchemeObject_make_char(ms, '\n')),
 																		SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "eq?"), SchemeObject_make_symbol(ms, "A"), SchemeObject_make_char(ms, '\t'))
 																		)), env);
-																																																																																		
+	
 	/*	(define (parse L)
 	 		(if		(empty? L)
 					empty
@@ -466,7 +476,7 @@ SchemeObject * make_base_parser_environment(MemorySpace * ms) {
 																																		SchemeObject_make_list_2(ms, SchemeObject_make_list_3(ms, SchemeObject_make_special_symbol_s(ms, LAMBDA), SchemeObject_make_list_1(ms, SchemeObject_make_symbol(ms, "E")),
 																																								/* body */
 																																								SchemeObject_make_list_4(ms, SchemeObject_make_special_symbol_s(ms, IF), 	SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "not"), SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "empty?"), SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "car"), SchemeObject_make_symbol(ms, "E")))),
-																																																											SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "cons"), SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "parse"), SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "car"), SchemeObject_make_symbol(ms, "E"))), SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "iterated-next-token"), SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "cdr"), SchemeObject_make_symbol(ms, "E")))),
+																																																											SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "cons"), SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "parse"), SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "car"), SchemeObject_make_symbol(ms, "E"))), SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "iterated-read-next-token"), SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "car"), SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "cdr"), SchemeObject_make_symbol(ms, "E"))))),
 																																														 													SchemeObject_make_empty(ms))),
 																																									 /* value for E */ SchemeObject_make_list_5(ms, SchemeObject_make_symbol(ms, "read-next-token"), SchemeObject_make_empty(ms), SchemeObject_make_symbol(ms, "L"), SchemeObject_make_integer(ms, 0), SchemeObject_make_special_symbol_s(ms, TRUE))
 																																															  ))), env);
@@ -557,7 +567,7 @@ SchemeObject * make_base_parser_environment(MemorySpace * ms) {
 																																										 													cond1,
 																																										 													SchemeObject_make_list_4(ms, SchemeObject_make_special_symbol_s(ms, IF),	SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "eq?"), SchemeObject_make_symbol(ms, "parencount"), SchemeObject_make_integer(ms, 0)),
 																																																																										SchemeObject_make_list_4(ms, SchemeObject_make_special_symbol_s(ms, IF),	big_or,
-																																																																																 													SchemeObject_make_list_2(ms, SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "reverse"), SchemeObject_make_symbol(ms, "accum")), SchemeObject_make_symbol(ms, "L")),
+																																																																																 													SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "list"), SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "reverse"), SchemeObject_make_symbol(ms, "accum")), SchemeObject_make_symbol(ms, "L")),
 																																																																																													recur_ad_0_f),
 																																																																										cond2)))), env);
 	/* 	I have to call eval on the quantities on the right, here, because they only get evaluated once.

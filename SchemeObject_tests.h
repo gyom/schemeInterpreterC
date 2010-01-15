@@ -25,6 +25,9 @@ void test13();
 void test14();
 void test15();
 void test16();
+void test_printing_base_parser();
+void test17();
+void test18();
 
 #endif
 

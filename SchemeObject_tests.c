@@ -495,7 +495,7 @@ void test14() {
 }
 
 void test15() {
-	printf("-----test15 : assert, list, cons, car, cdr -----\n");
+	printf("-----test15 : assert, list, cons, car, cdr, list->string, string->list -----\n");
 	MemorySpace * ms = make_MemorySpace(DEFAULT_MEMORY_FOR_MACHINE);
 	SchemeObject * env = make_base_environment(ms);
 	
@@ -541,6 +541,17 @@ void test15() {
 															  ));
 	evaluate(ms, L, env);
 	
+	/*
+	 (define A "chien  () lupi..")
+	 (assert (eq? (list->string (string->list A)) A)) 
+	 */
+	L = SchemeObject_make_list_1(ms, SchemeObject_make_list_4(ms, 	SchemeObject_make_special_symbol_s(ms, LAMBDA),
+															  SchemeObject_make_empty(ms),
+															  SchemeObject_make_list_3(ms, SchemeObject_make_special_symbol_s(ms, DEFINE), SchemeObject_make_symbol(ms, "A"), SchemeObject_make_string(ms, "chien  () lupi..")),
+															  SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "assert"), SchemeObject_make_list_3(ms, SchemeObject_make_symbol(ms, "eq?"), SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "list->string"), SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "string->list"), SchemeObject_make_symbol(ms, "A"))), SchemeObject_make_symbol(ms, "A")))
+															  ));
+	evaluate(ms, L, env);
+	
 	//assert(SchemeObject_eq(SchemeObject_make_integer(ms, 3), evaluate(ms, L, env)));
 	
 	ms->destroy(ms);
@@ -553,14 +564,6 @@ void test16() {
 	SchemeObject * env = make_base_parser_environment(ms);
 	
 	SchemeObject * L, * M;
-	
-	//
-	/*
-	L = SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms,"parse"),
-												SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "string->list"), SchemeObject_make_string(ms, "(lambda (x) (+ 1 x))")));
-	SchemeObject_print(evaluate(ms, L, env));
-	*/
-	//
 	
 	/*  (lambda (x) (+ 1 x)) -> (lambda (x) (+ 1 x))   */
 	L = SchemeObject_make_list_5(ms, 	SchemeObject_make_symbol(ms,"read-next-token"),
@@ -581,16 +584,135 @@ void test16() {
 								 SchemeObject_make_special_symbol_s(ms, TRUE)
 								 );
 	M = SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "list->string"), SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "car"), L));
-	SchemeObject_print(evaluate(ms, M, env));
-	
-	//assert(SchemeObject_eq(SchemeObject_make_string(ms, "lambda"), evaluate(ms, M, env)));
+	assert(SchemeObject_eq(SchemeObject_make_string(ms, "lambda"), evaluate(ms, M, env)));
 	
 	
-	//printf("\n");
-	//SchemeObject_print(evaluate(ms, M, env));
 	
-	//assert(SchemeObject_eq(SchemeObject_make_integer(ms, 3), evaluate(ms, L, env)));
+	L = SchemeObject_make_list_2(ms, 	SchemeObject_make_symbol(ms,"parse"),
+										SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "string->list"), SchemeObject_make_string(ms, "(lambda (x) (+ 1 x))")));
+	//SchemeObject_print(evaluate(ms, L, env));
+	assert(SchemeObject_eq( SchemeObject_make_double(ms, 5.2877), evaluate(ms, SchemeObject_make_list_2(ms, evaluate(ms, L, env),	SchemeObject_make_double(ms, 4.2877)), env)));
 	
 	ms->destroy(ms);
+	return;
+}
+
+
+void test_printing_base_parser() {
+	printf("-----test printing_base_parser -----\n");
+	MemorySpace * ms = make_MemorySpace(DEFAULT_MEMORY_FOR_MACHINE);
+	SchemeObject * env = make_base_parser_environment(ms);
+	
+	SchemeObject * L;
+	
+	L = evaluate(ms, SchemeObject_make_list_1(ms, SchemeObject_make_list_3(ms, SchemeObject_make_special_symbol_s(ms, LAMBDA), SchemeObject_make_empty(ms), SchemeObject_make_symbol(ms, "parse"))), env);
+	SchemeObject_print(L);
+	printf("\n");
+	SchemeObject_print(L->data.val_lambda.arg_symbols);
+	printf("\n");
+	SchemeObject_print(L->data.val_lambda.body);
+	printf("\n");
+	 
+	L = evaluate(ms, SchemeObject_make_list_1(ms, SchemeObject_make_list_3(ms, SchemeObject_make_special_symbol_s(ms, LAMBDA), SchemeObject_make_empty(ms), SchemeObject_make_symbol(ms, "iterated-read-next-token"))), env);	
+	SchemeObject_print(L);
+	printf("\n");
+	SchemeObject_print(L->data.val_lambda.arg_symbols);
+	printf("\n");
+	SchemeObject_print(L->data.val_lambda.body);
+	printf("\n");
+	 
+	L = evaluate(ms, SchemeObject_make_list_1(ms, SchemeObject_make_list_3(ms, SchemeObject_make_special_symbol_s(ms, LAMBDA), SchemeObject_make_empty(ms), SchemeObject_make_symbol(ms, "read-next-token"))), env);	
+	SchemeObject_print(L);
+	printf("\n");
+	SchemeObject_print(L->data.val_lambda.arg_symbols);
+	printf("\n");
+	SchemeObject_print(L->data.val_lambda.body);
+	printf("\n");
+	
+	
+	ms->destroy(ms);
+	return;
+}
+
+void test17() {
+	printf("-----test17 : first parsed assertions -----\n");
+	MemorySpace * ms = make_MemorySpace(DEFAULT_MEMORY_FOR_MACHINE);
+	SchemeObject * env = make_base_parser_environment(ms);
+	
+	/*
+	 ((lambda ()
+	 	(define A (cons 1 (cons 2 empty)))
+	 	(define f (lambda (x y) (* x (+ y -7))))
+
+	 	(assert (eq? (car A) 1))
+		(assert (not (eq? (car A) 2)))
+	 	(assert (eq? (car (cdr (car A))) 2))
+	 	(assert (empty? empty))
+	 	(assert (eq? 3 (+ 1 1 1)))
+	 
+	 	(assert (eq? (f (car A) 0) -7))
+		(assert (eq? (f 12 (car A)) -72))
+	
+	 	(display "le Chien est con !")
+	 	(newline)
+	 	(display "le chien est encore con, mais il ne l'est pas.")
+	 ))
+	 */
+	
+	char * str = 	"(lambda ()											"
+					"		(define A (cons 1 (cons 2 empty)))					"
+					"		(define f (lambda (x y) (* x (+ y -7))))			"
+					"															"
+					"		(assert (eq? (car A) 1))							"
+					"		(assert (not (eq? (car A) 2)))						"
+					"		(assert (eq? (car (cdr (car A))) 2))				"
+					"		(assert (empty? empty))								"
+					"		(assert (eq? 3 (+ 1 1 1)))							"
+					"															"
+					"		(assert (eq? (f (car A) 0) -7))						"
+					"		(assert (eq? (f 12 (car A)) -72))					"
+					"															"
+					"		(display \"le Chien est con !\")					"
+					"		(newline)											"
+					"		(display \"le chien est encore con.\")				"
+					")";												
+		
+	SchemeObject * L = SchemeObject_make_list_2(ms, 	SchemeObject_make_symbol(ms,"parse"),
+														SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "string->list"), SchemeObject_make_string(ms, str)));
+	SchemeObject * compiled_code_Sn1m = evaluate(ms, L, env);
+	evaluate(ms, compiled_code_Sn1m, env);
+	
+	ms->destroy(ms);
+	return;
+}
+
+void test18() {
+	printf("-----test18 : garbage collection -----\n");
+	MemorySpace * ms = make_MemorySpace(DEFAULT_MEMORY_FOR_MACHINE);
+	SchemeObject * env = make_base_parser_environment(ms);
+	
+	char * str = "(list 1 2 (list \"chien\" 4 5) (quote arbre) (list 6 7))";
+	
+	SchemeObject * L = SchemeObject_make_list_2(ms, 	SchemeObject_make_symbol(ms,"parse"),
+														SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "string->list"), SchemeObject_make_string(ms, str)));
+
+	SchemeObject * evaluated_L = evaluate(ms, L, env);
+	MemorySpace * new_ms = make_MemorySpace(DEFAULT_MEMORY_FOR_MACHINE);
+	
+	SchemeObject * evaluated_L_t = GarbageCollection_floodfill_move_to_new_MemorySpace(new_ms, evaluated_L);
+	SchemeObject * env_t = GarbageCollection_floodfill_move_to_new_MemorySpace(new_ms, env);
+	
+	printf("\n");
+	printf("I   : ");	SchemeObject_print(evaluated_L);	printf("\n");
+	printf("II  : ");	SchemeObject_print(evaluated_L_t);	printf("\n");
+	printf("Ie  : ");	SchemeObject_print(evaluate(ms, evaluated_L, env)); 			printf("\n");
+	printf("IIe : ");	SchemeObject_print(evaluate(new_ms, evaluated_L_t, env_t)); 	printf("\n");
+	printf("\n");
+	
+	
+	//assert(SchemeObject_eq(evaluated_L, evaluated_L_t)); // won't work for lists
+	
+	ms->destroy(ms);
+	ms->destroy(new_ms);
 	return;
 }

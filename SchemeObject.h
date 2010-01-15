@@ -75,7 +75,7 @@ typedef union _Content {
 typedef struct _SchemeObject {
 	DataType type;
 	Content data;
-	int garbage_collection_flag;
+	struct _SchemeObject * garbage_collection_redirection_address;
 } SchemeObject;
 
 
@@ -113,6 +113,7 @@ int SchemeObject_is_double(SchemeObject * E);
 int SchemeObject_is_empty(SchemeObject * E);
 int SchemeObject_is_symbol(SchemeObject * E);
 int SchemeObject_is_string(SchemeObject * E);
+int SchemeObject_is_memorychunk(SchemeObject * E);
 int SchemeObject_is_char(SchemeObject * E);
 int SchemeObject_eq(SchemeObject * x, SchemeObject * y);
 int SchemeObject_eq_memorychunks(SchemeObject * x, SchemeObject * y);
@@ -121,11 +122,13 @@ int SchemeObject_is_atomic_function(SchemeObject * E);
 int SchemeObject_is_composite_function(SchemeObject * E);
 int SchemeObject_is_exec_apply(SchemeObject * E);
 int SchemeObject_is_exec_eval(SchemeObject * E);
+int SchemeObject_is_exec_evalseq(SchemeObject * E);
 int SchemeObject_is_special_symbol(SchemeObject * E);
 int SchemeObject_is_special_symbol_s(SchemeObject * E, SpecialSymbol S);
 int SchemeObject_is_self_evaluating(SchemeObject * E);
 
 void SchemeObject_print(SchemeObject * E);
+void SchemeObject_print_details(SchemeObject * E);
 int SchemeObject_copy(MemorySpace * ms, SchemeObject * dest, SchemeObject * source);
 SchemeObject * SchemeObject_make_list_n(MemorySpace * ms, int length);
 SchemeObject * SchemeObject_zip(MemorySpace * ms, SchemeObject * A, SchemeObject * B);
@@ -155,6 +158,9 @@ SchemeObject * sum_wrapper(MemorySpace *ms, SchemeObject * L);
 
 SchemeObject * make_base_environment(MemorySpace * ms);
 SchemeObject * make_base_parser_environment(MemorySpace * ms);
+
+void GarbageCollection_reset_redirection_address(SchemeObject * E);
+SchemeObject * GarbageCollection_floodfill_move_to_new_MemorySpace(MemorySpace * new_ms, SchemeObject * start);
 
 #endif
 

@@ -23,7 +23,7 @@
                     (read-next-token added remaining parencount #f))
                 (cond ((eq? (car L) #\( ) (read-next-token added remaining (+ parencount 1) #f))
                       ((eq? (car L) #\) ) (read-next-token added remaining (- parencount 1) #f))
-                      (#t (rquitead-next-token added remaining parencount #f))
+                      (#t (read-next-token added remaining parencount #f))
                       ))))))
 
 (define (analyze-atomic-element E)
@@ -80,3 +80,10 @@
 (define A (iterated-read-next-token (string->list "(lambda (x) (+ 1 x)) lupi -123 (LAUL)")))
 (print-by-line A)
 (display A)
+
+(newline)
+(define B (parse (string->list "(lambda () 1)")))
+
+; this doesn't parse correctly, and neither does " (lambda () 1)" with a space
+(newline)
+(define C (parse (string->list "x 2  1")))

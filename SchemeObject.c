@@ -52,6 +52,7 @@ SchemeObject * SchemeObject_make_integer(MemorySpace * ms, int value) {
 	assert(result != NULL);
 	result->type = INTEGER;
 	result->data.val_integer = value;
+	GarbageCollection_reset_redirection_address(result);
 	return result;
 }
 
@@ -60,6 +61,7 @@ SchemeObject * SchemeObject_make_double(MemorySpace * ms, double value) {
 	assert(result != NULL);
 	result->type = DOUBLE;
 	result->data.val_double = value;
+	GarbageCollection_reset_redirection_address(result);
 	return result;
 }
 
@@ -67,6 +69,7 @@ SchemeObject * SchemeObject_make_empty(MemorySpace * ms) {
 	SchemeObject * result = ms->allocate(ms, sizeof(SchemeObject));
 	assert(result != NULL);
 	result->type = EMPTY;
+	GarbageCollection_reset_redirection_address(result);
 	return result;
 }
 
@@ -88,6 +91,7 @@ SchemeObject * SchemeObject_make_string(MemorySpace * ms, char * str) {
 	SchemeObject * result = ms->allocate(ms, sizeof(SchemeObject));
 	assert(result != NULL);
 	result->type = STRING;
+	GarbageCollection_reset_redirection_address(result);
 	
 	size = len*sizeof(char);
 	result->data.val_memorychunk.size = size;
@@ -110,6 +114,7 @@ SchemeObject * SchemeObject_make_char(MemorySpace * ms, char c) {
 	assert(result != NULL);
 	result->type = CHAR;
 	result->data.val_char = c;
+	GarbageCollection_reset_redirection_address(result);
 	return result;
 }
 
@@ -119,6 +124,7 @@ SchemeObject * SchemeObject_make_pair(MemorySpace * ms, SchemeObject * left, Sch
 	result->type = PAIR;
 	result->data.val_pair.car = left;
 	result->data.val_pair.cdr = right;
+	GarbageCollection_reset_redirection_address(result);
 	return result;
 }
 
@@ -127,6 +133,7 @@ SchemeObject * SchemeObject_make_atomic_function(MemorySpace * ms, void * ptr_C_
 	assert(result != NULL);
 	result->type = ATOMIC_FUNCTION;
 	result->data.val_pointer = ptr_C_impl;
+	GarbageCollection_reset_redirection_address(result);
 	return result;
 }
 
@@ -137,6 +144,7 @@ SchemeObject * SchemeObject_make_composite_function(MemorySpace * ms, SchemeObje
 	result->data.val_lambda.arg_symbols = arg_symbols;
 	result->data.val_lambda.body = body;
 	result->data.val_lambda.enclosed_env = enclosed_env;
+	GarbageCollection_reset_redirection_address(result);
 	return result;
 }
 
@@ -148,6 +156,7 @@ SchemeObject * SchemeObject_make_exec_apply(MemorySpace * ms, SchemeObject * fun
 	result->data.val_apply.resolved_args = resolved_args;
 	result->data.val_apply.output = output;
 	result->data.val_apply.continuation = continuation;
+	GarbageCollection_reset_redirection_address(result);
 	return result;
 }
 
@@ -159,6 +168,7 @@ SchemeObject * SchemeObject_make_exec_eval(MemorySpace * ms, SchemeObject * expr
 	result->data.val_eval.env = env;
 	result->data.val_eval.output = output;
 	result->data.val_eval.continuation = continuation;
+	GarbageCollection_reset_redirection_address(result);
 	return result;
 }
 
@@ -194,6 +204,9 @@ int SchemeObject_is_char(SchemeObject * E) {
 }
 int SchemeObject_is_symbol(SchemeObject * E) {
 	return ((E != NULL) && (E->type == SYMBOL));
+}
+int SchemeObject_is_memorychunk(SchemeObject * E) {
+	return ((E != NULL) && (E->type == MEMORY_CHUNK));
 }
 int SchemeObject_is_empty(SchemeObject * E) {
 	if (E == NULL)
@@ -272,7 +285,13 @@ int SchemeObject_eq(SchemeObject * x, SchemeObject * y) {
 	else if (SchemeObject_is_empty(x) && SchemeObject_is_empty(y))
 		return 1;
 	
-	printf("We are comparing two objects of a different type !\n");
+	printf("We are comparing two objects of a different type, or two lists ...");
+	printf("\n\tobject 1 : ");
+	SchemeObject_print_details(x);
+	printf("\n\tobject 2 : ");
+	SchemeObject_print_details(y);
+	printf("\n");
+	assert(0);
 	
 	/* if everything failed */
 	return 0;
@@ -287,22 +306,34 @@ void SchemeObject_print(SchemeObject * E) {
 		printf("%f", SchemeObject_get_double(E));
 	else if (SchemeObject_is_empty(E))
 		printf("{empty}");
-	else if (SchemeObject_is_string(E) || SchemeObject_is_symbol(E)) {
+	else if (SchemeObject_is_string(E)) {
 		char * str = E->data.val_memorychunk.data;
 		int i;
+		printf("\"");
 		for( i = 0 ; i < E->data.val_memorychunk.size; ++i)
 			printf("%c", str[i]);
+		printf("\"");
+	} else if (SchemeObject_is_symbol(E)) {
+			char * str = E->data.val_memorychunk.data;
+			int i;
+			for( i = 0 ; i < E->data.val_memorychunk.size; ++i)
+				printf("%c", str[i]);
 	} else if (SchemeObject_is_char(E))
-		printf("%c", SchemeObject_get_char(E));
+		printf("#\\%c", SchemeObject_get_char(E));
 	else if (SchemeObject_is_pair(E)) {
 		/* 	abusing the C stack because this should be done with Scheme
 			if I really wanted to do the whole thing. I already accepted
 		 	the C environment lookup, so this seems okay.
 		 */
-		printf("( ");
+		printf("(");
+		int first = 1; /* some variable to pad properly */
 		while(SchemeObject_is_pair(E)) {
+			/* so that I get lists printed as (1 2 3) and not ( 1 2 3) or (1 2 3 ) */
+			if (first)
+				first = 0;
+			else
+				printf(" ");
 			SchemeObject_print(SchemeObject_car(E));
-			printf("  ");
 			E = SchemeObject_cdr(E);
 		}
 		printf(")");
@@ -336,6 +367,72 @@ void SchemeObject_print(SchemeObject * E) {
 	return;
 }
 
+void SchemeObject_print_details(SchemeObject * E) {
+	if (E == NULL) {
+		printf("NULL");
+	} else if (SchemeObject_is_integer(E)) {
+		printf("{integer:");
+		printf("%d", SchemeObject_get_integer(E));
+		printf("}");
+	} else if (SchemeObject_is_double(E)) {
+		printf("{double:");
+		printf("%f", SchemeObject_get_double(E));
+		printf("}");
+	} else if (SchemeObject_is_empty(E))
+		printf("{empty}");
+	else if (SchemeObject_is_string(E) || SchemeObject_is_symbol(E)) {
+		printf("{string:");
+		char * str = E->data.val_memorychunk.data;
+		int i;
+		for( i = 0 ; i < E->data.val_memorychunk.size; ++i)
+			printf("#\\%c", str[i]);
+		printf("}");
+	} else if (SchemeObject_is_char(E)) {
+		printf("{char:");
+		printf("%c", SchemeObject_get_char(E));
+		printf("}");
+	} else if (SchemeObject_is_pair(E)) {
+		/* 	abusing the C stack because this should be done with Scheme
+		 if I really wanted to do the whole thing. I already accepted
+		 the C environment lookup, so this seems okay.
+		 */
+		printf("( {list} ");
+		while(SchemeObject_is_pair(E)) {
+			SchemeObject_print_details(SchemeObject_car(E));
+			printf(" ");
+			E = SchemeObject_cdr(E);
+		}
+		printf(")");
+	} else if (SchemeObject_is_exec_apply(E) ) {
+		printf("[exec_apply]");
+	} else if (SchemeObject_is_exec_eval(E) ) {
+		printf("[exec_eval]");
+	} else if (SchemeObject_is_atomic_function(E) ) {
+		printf("{atomic_function}");
+	} else if (SchemeObject_is_composite_function(E) ) {
+		printf("{composite_function}");
+	} else if (SchemeObject_is_special_symbol_s(E, LAMBDA)) {
+		printf("{ssymb:lambda}");
+	} else if (SchemeObject_is_special_symbol_s(E, SET)) {
+		printf("{ssymb:set!}");
+	} else if (SchemeObject_is_special_symbol_s(E, CALLCC)) {
+		printf("{ssymb:call/cc}");
+	} else if (SchemeObject_is_special_symbol_s(E, IF)) {
+		printf("{ssymb:if}");
+	} else if (SchemeObject_is_special_symbol_s(E, DEFINE)) {
+		printf("{ssymb:define}");
+	} else if (SchemeObject_is_special_symbol_s(E, QUOTE)) {
+		printf("{ssymb:quote}");
+	} else if (SchemeObject_is_special_symbol_s(E, TRUE)) {
+		printf("{ssymb:#t}");
+	} else if (SchemeObject_is_special_symbol_s(E, FALSE)) {
+		printf("{ssymb:#f}");
+	} else
+		printf("-X-"); /* some default symbol for unknowns */
+	
+	return;
+}
+
 /* 	Should I return copies of the selected expressions instead of direct references ?
  	No. That shouldn't be necessary, because the objects returned are already the results
  	of evaluations. Don't use the result of an "if" to write inside a variable, though.
@@ -350,7 +447,7 @@ void SchemeObject_print(SchemeObject * E) {
  	before any of the branches are considered for evaluation.
  */
 SchemeObject * if_wrapper(MemorySpace * ms, SchemeObject * L) {
-	printf("During if_wrapper : "); SchemeObject_print(L); printf("\n");
+	//printf("During if_wrapper : "); SchemeObject_print(L); printf("\n");
 	if( SchemeObject_is_special_symbol_s( SchemeObject_first(L), TRUE) )
 		return SchemeObject_second(L);
 	else
@@ -360,7 +457,7 @@ SchemeObject * if_wrapper(MemorySpace * ms, SchemeObject * L) {
 int SchemeObject_copy(MemorySpace * ms, SchemeObject * dest, SchemeObject * source) {
 	memcpy(dest, source, sizeof(SchemeObject));
 	/* if we need to reallocate the memory */
-	if (SchemeObject_is_string(source) | SchemeObject_is_symbol(source)) {
+	if (SchemeObject_is_string(source) || SchemeObject_is_symbol(source) || SchemeObject_is_memorychunk(source)) {
 		dest->data.val_memorychunk.data = ms->allocate(ms, source->data.val_memorychunk.size);
 		if (dest->data.val_memorychunk.data == NULL)
 			return 0;
@@ -911,6 +1008,8 @@ int main() {
 	test6();
 	test7();
 	test8();*/
+	
+	/*
 	test10();
 	test11();
 	test9();
@@ -918,7 +1017,10 @@ int main() {
 	test13();
 	test14();
 	test15();
-	test16();
+	test16();*/
+	//test_printing_base_parser();
+	//test17();  // takes too much memory
+	test18();
 	
 	return 0;
 }

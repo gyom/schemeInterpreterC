@@ -6,6 +6,9 @@
 
 #include "MemorySpace.h"
 
+/* 	Signaling the memory allocation errors clearly doesn't really appear to be
+ 	something we'd like to do only while debugging. Maybe it should rethink this.	
+ */
 #ifdef DEBUG_MEMORYSPACE
 #include <stdio.h>
 #endif
