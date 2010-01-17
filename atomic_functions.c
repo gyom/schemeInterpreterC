@@ -296,6 +296,11 @@ SchemeObject * assert_wrapper(MemorySpace * ms, SchemeObject * L) {
 	SchemeObject * E;
 	while( SchemeObject_is_pair(L) ) {
 		E = SchemeObject_car(L);
+		if (!SchemeObject_is_special_symbol_s(E, TRUE)) {
+			printf("(assert ...) failed with argument : ");
+			SchemeObject_print_details(E);
+			printf("\n");
+		}
 		assert(SchemeObject_is_special_symbol_s(E, TRUE));
 		L = SchemeObject_cdr(L);
 	}

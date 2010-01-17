@@ -659,7 +659,7 @@ void test17() {
 	 ))
 	 */
 	
-	char * str = 	"(lambda ()											"
+	char * str = 	"((lambda ()											"
 					"		(define A (cons 1 (cons 2 empty)))					"
 					"		(define f (lambda (x y) (* x (+ y -7))))			"
 					"															"
@@ -675,7 +675,7 @@ void test17() {
 					"		(display \"le Chien est con !\")					"
 					"		(newline)											"
 					"		(display \"le chien est encore con.\")				"
-					")";												
+					"))";												
 		
 	
 	//char * str = "(list 1 2 3 (list 4 5) (list 6 7 8))";
@@ -777,7 +777,7 @@ void test19() {
 	SchemeObject * expr_t = SchemeObject_list_ref_n(transferred_data_to_track,1);
 	SchemeObject * parsed_expr_t = SchemeObject_list_ref_n(transferred_data_to_track,2);
 	SchemeObject * continuation_t = SchemeObject_list_ref_n(transferred_data_to_track,3);
-	SchemeObject * lupitron_t = SchemeObject_list_ref_n(transferred_data_to_track,4);
+	//SchemeObject * lupitron_t = SchemeObject_list_ref_n(transferred_data_to_track,4);
 	assert(SchemeObject_eq(SchemeObject_list_ref_n(transferred_data_to_track,4), SchemeObject_list_ref_n(data_to_track,4)));
 	printf("transferred_data_to_track = %p, parsed_expr_t = %p, exec bloc output _t = %p\n", transferred_data_to_track, parsed_expr_t, SchemeObject_exec_get_output(continuation_t));
 	
@@ -862,11 +862,11 @@ void test19() {
 }
 
 void test20() {
-	printf("-----test20 : garbage collection -----\n");
+	printf("-----test20 : garbage collection, controled reallocation -----\n");
 	MemorySpace * ms = make_MemorySpace(DEFAULT_MEMORY_FOR_MACHINE);
 	SchemeObject * env = make_base_parser_environment(ms);
 	
-	/*char * str = 	"(lambda ()											"
+	/*char * str = 	"((lambda ()											"
 	"		(define A (cons 1 (cons 2 empty)))					"
 	"		(define f (lambda (x y) (* x (+ y -7))))			"
 	"															"
@@ -882,7 +882,7 @@ void test20() {
 	"		(display \"le Chien est con !\")					"
 	"		(newline)											"
 	"		(display \"le chien est encore con.\")				"
-	")";*/	
+	") )";	*/
 	char * str = "((lambda (x) (display \"allo\") (+ 1 x)) 7)";
 	SchemeObject * L = SchemeObject_make_list_2(ms, 	SchemeObject_make_symbol(ms,"parse"),
 												SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "string->list"), SchemeObject_make_string(ms, str)));
@@ -942,6 +942,104 @@ void test20() {
 	//evaluate(ms, SchemeObject_make_symbol(ms, "OUTPUT"), env);
 	
 	new_ms->destroy(new_ms);
+	
+	return;
+}
+
+void test21() {
+	printf("-----test21 : garbage collection again, simplified -----\n");
+	MemorySpace * ms = make_MemorySpace(DEFAULT_MEMORY_FOR_MACHINE);
+	SchemeObject * env = make_base_parser_environment(ms);
+	
+	char * str = 	"((lambda ()											"
+	 "		(define A (cons 1 (cons 2 empty)))					"
+	 "		(define f (lambda (x y) (* x (+ y -7))))			"
+	 "															"
+	 "		(assert (eq? (car A) 1))							"
+	 "		(assert (not (eq? (car A) 2)))						"
+	 "		(assert (eq? (car (cdr A)) 2))				"
+	 "		(assert (empty? empty))								"
+	 "		(assert (eq? 3 (+ 1 1 1)))							"
+	 "															"
+	 "		(assert (eq? (f (car A) 0) -7))						"
+	 "		(assert (eq? (f 12 (car A)) -72))					"
+	 "															"
+	 "		(display \"le_Chien_est_con_!\")					"
+	 "		(newline)											"
+	 "		(display \"le_chien_est_encore_con.\")				"
+	 "))";
+	
+	/*char * str = 	"((lambda (W)											"
+		 "		(define A (cons 1 (cons 2 empty)))					"
+	"		(assert (eq? (car A) 1))							"
+	"		(assert (not (eq? (car A) 2)))						"
+	"		(display \"le_Chien_est_con_!\")					"
+	"		(newline)											"
+	"		(display A)				"
+	"		(newline)											"
+	") (cons 1 (cons 2 empty)))";*/
+	
+	//char * str = "((lambda (x) (display \"allo\") (+ 1 x)) 7)";
+	SchemeObject * L = SchemeObject_make_list_2(ms, 	SchemeObject_make_symbol(ms,"parse"),
+												SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "string->list"), SchemeObject_make_string(ms, str)));
+	printf("will evaluate the basic expressions\n");
+	
+	MemorySpace * new_ms;
+	SchemeObject * data_to_track;	SchemeObject * data_to_track_t;
+	
+	SchemeObject * continuation;
+	// Now we want to have a loop that essentially evaluates this.
+	//	SchemeObject * expr = evaluate(ms, L, env);
+	SchemeObject * expr = SchemeObject_make_empty(ms);
+	continuation = SchemeObject_make_exec_eval(ms, L, env, expr, NULL);
+	do {
+		continuation = execute(ms, continuation);
+		//printf("main loop will execute : %p\n", continuation);
+		if (ms->needs_reallocation(ms)) {
+			printf("reallocating. ");
+			new_ms = make_MemorySpace(DEFAULT_MEMORY_FOR_MACHINE);
+			data_to_track = SchemeObject_make_pair(ms, expr, SchemeObject_make_pair(ms, continuation, SchemeObject_make_empty(ms)));
+			data_to_track_t = GarbageCollection_floodfill_move_to_new_MemorySpace(new_ms, data_to_track);
+			expr = SchemeObject_list_ref_n(data_to_track_t,1);
+			continuation = SchemeObject_list_ref_n(data_to_track_t,2);
+			
+			ms->destroy(ms);
+			ms = new_ms;
+			printf("now using %d bytes.\n", ms->n_chunks_used);
+		}
+	} while(continuation != NULL);
+	
+	//SchemeObject_print(L);		printf("\n");	//it's gone
+	printf("expr : ");	SchemeObject_print(expr);	printf("\n");
+	printf("expr in details : ");	SchemeObject_print_details(expr);	printf("\n");
+	
+	env = make_base_parser_environment(ms);
+	SchemeObject * output = SchemeObject_make_empty(ms);
+	continuation = SchemeObject_make_exec_eval(ms, expr, env, output, NULL);
+	
+	do {
+		continuation = execute(ms, continuation);
+		//printf("main loop will execute : %p\n", continuation);
+		if (ms->needs_reallocation(ms)) {
+			printf("reallocating. ");
+			new_ms = make_MemorySpace(DEFAULT_MEMORY_FOR_MACHINE);
+			data_to_track = SchemeObject_make_pair(ms, output, SchemeObject_make_pair(ms, continuation, SchemeObject_make_empty(ms)));
+			data_to_track_t = GarbageCollection_floodfill_move_to_new_MemorySpace(new_ms, data_to_track);
+			output = SchemeObject_list_ref_n(data_to_track_t,1);
+			continuation = SchemeObject_list_ref_n(data_to_track_t,2);
+
+			//printf("data_to_track = %p\n", data_to_track);
+			//printf("data_to_track_t = %p\n", data_to_track_t);
+			//printf("output = %p\n", output);
+			ms->destroy(ms);
+			ms = new_ms;
+			printf("now using %d bytes.\n", ms->n_chunks_used);
+		}
+	} while(continuation != NULL);
+	
+	SchemeObject_print_details(output);		printf("\n");
+	
+	ms->destroy(ms);
 	
 	return;
 }

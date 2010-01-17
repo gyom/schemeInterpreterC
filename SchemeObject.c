@@ -1027,6 +1027,7 @@ int main() {
 	//test18();
 	//test19();
 	test20();
+	test21();
 	
 	return 0;
 }

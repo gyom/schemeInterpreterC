@@ -30,6 +30,7 @@ void test17();
 void test18();
 void test19();
 void test20();
+void test21();
 
 #endif
 
