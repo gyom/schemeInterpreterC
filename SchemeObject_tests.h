@@ -28,6 +28,8 @@ void test16();
 void test_printing_base_parser();
 void test17();
 void test18();
+void test19();
+void test20();
 
 #endif
 

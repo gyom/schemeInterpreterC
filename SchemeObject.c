@@ -48,7 +48,7 @@ SchemeObject * SchemeObject_third(SchemeObject * P) {
 }
 
 SchemeObject * SchemeObject_make_integer(MemorySpace * ms, int value) {
-	SchemeObject * result = ms->allocate(ms, sizeof(SchemeObject));
+	SchemeObject * result = SchemeObject_make_empty(ms); //ms->allocate(ms, sizeof(SchemeObject));
 	assert(result != NULL);
 	result->type = INTEGER;
 	result->data.val_integer = value;
@@ -57,7 +57,7 @@ SchemeObject * SchemeObject_make_integer(MemorySpace * ms, int value) {
 }
 
 SchemeObject * SchemeObject_make_double(MemorySpace * ms, double value) {
-	SchemeObject * result = ms->allocate(ms, sizeof(SchemeObject));
+	SchemeObject * result = SchemeObject_make_empty(ms); //ms->allocate(ms, sizeof(SchemeObject));
 	assert(result != NULL);
 	result->type = DOUBLE;
 	result->data.val_double = value;
@@ -88,7 +88,7 @@ SchemeObject * SchemeObject_make_string(MemorySpace * ms, char * str) {
 	//while(*str++ != '\0') len++;
 	len = strlen(str);
 	
-	SchemeObject * result = ms->allocate(ms, sizeof(SchemeObject));
+	SchemeObject * result = SchemeObject_make_empty(ms); //ms->allocate(ms, sizeof(SchemeObject));
 	assert(result != NULL);
 	result->type = STRING;
 	GarbageCollection_reset_redirection_address(result);
@@ -110,7 +110,7 @@ SchemeObject * SchemeObject_make_symbol(MemorySpace * ms, char * str) {
 }
 
 SchemeObject * SchemeObject_make_char(MemorySpace * ms, char c) {
-	SchemeObject * result = ms->allocate(ms, sizeof(SchemeObject));
+	SchemeObject * result = SchemeObject_make_empty(ms);// ms->allocate(ms, sizeof(SchemeObject));
 	assert(result != NULL);
 	result->type = CHAR;
 	result->data.val_char = c;
@@ -119,7 +119,7 @@ SchemeObject * SchemeObject_make_char(MemorySpace * ms, char c) {
 }
 
 SchemeObject * SchemeObject_make_pair(MemorySpace * ms, SchemeObject * left, SchemeObject * right) {
-	SchemeObject * result = ms->allocate(ms, sizeof(SchemeObject));
+	SchemeObject * result = SchemeObject_make_empty(ms);//ms->allocate(ms, sizeof(SchemeObject));
 	assert(result != NULL);
 	result->type = PAIR;
 	result->data.val_pair.car = left;
@@ -129,7 +129,7 @@ SchemeObject * SchemeObject_make_pair(MemorySpace * ms, SchemeObject * left, Sch
 }
 
 SchemeObject * SchemeObject_make_atomic_function(MemorySpace * ms, void * ptr_C_impl) {
-	SchemeObject * result = ms->allocate(ms, sizeof(SchemeObject));
+	SchemeObject * result = SchemeObject_make_empty(ms);//ms->allocate(ms, sizeof(SchemeObject));
 	assert(result != NULL);
 	result->type = ATOMIC_FUNCTION;
 	result->data.val_pointer = ptr_C_impl;
@@ -138,7 +138,7 @@ SchemeObject * SchemeObject_make_atomic_function(MemorySpace * ms, void * ptr_C_
 }
 
 SchemeObject * SchemeObject_make_composite_function(MemorySpace * ms, SchemeObject * arg_symbols, SchemeObject * body, SchemeObject * enclosed_env) {
-	SchemeObject * result = ms->allocate(ms, sizeof(SchemeObject));
+	SchemeObject * result = SchemeObject_make_empty(ms);//ms->allocate(ms, sizeof(SchemeObject));
 	assert(result != NULL);
 	result->type = COMPOSITE_FUNCTION;
 	result->data.val_lambda.arg_symbols = arg_symbols;
@@ -149,7 +149,7 @@ SchemeObject * SchemeObject_make_composite_function(MemorySpace * ms, SchemeObje
 }
 
 SchemeObject * SchemeObject_make_exec_apply(MemorySpace * ms, SchemeObject * func, SchemeObject * resolved_args, SchemeObject * output, SchemeObject * continuation) {
-	SchemeObject * result = ms->allocate(ms, sizeof(SchemeObject));
+	SchemeObject * result = SchemeObject_make_empty(ms);//ms->allocate(ms, sizeof(SchemeObject));
 	assert(result != NULL);
 	result->type = EXEC_APPLY;
 	result->data.val_apply.func = func;
@@ -161,7 +161,7 @@ SchemeObject * SchemeObject_make_exec_apply(MemorySpace * ms, SchemeObject * fun
 }
 
 SchemeObject * SchemeObject_make_exec_eval(MemorySpace * ms, SchemeObject * expr, SchemeObject * env, SchemeObject * output, SchemeObject * continuation) {
-	SchemeObject * result = ms->allocate(ms, sizeof(SchemeObject));
+	SchemeObject * result = SchemeObject_make_empty(ms);//ms->allocate(ms, sizeof(SchemeObject));
 	assert(result != NULL);
 	result->type = EXEC_EVAL;
 	result->data.val_eval.expr = expr;
@@ -361,6 +361,8 @@ void SchemeObject_print(SchemeObject * E) {
 		printf("{ssymb:#t}");
 	} else if (SchemeObject_is_special_symbol_s(E, FALSE)) {
 		printf("{ssymb:#f}");
+	} else if (SchemeObject_is_capturedcontinuation(E)) {
+		printf("{continuation}");
 	} else
 		printf("-X-"); /* some default symbol for unknowns */
 			
@@ -404,9 +406,11 @@ void SchemeObject_print_details(SchemeObject * E) {
 		}
 		printf(")");
 	} else if (SchemeObject_is_exec_apply(E) ) {
-		printf("[exec_apply]");
+		printf("[exec_apply, func = %p, resolved_args = %p, output = %p, continuation = %p]", E->data.val_apply.func, E->data.val_apply.resolved_args, E->data.val_eval.output, E->data.val_eval.continuation );
 	} else if (SchemeObject_is_exec_eval(E) ) {
-		printf("[exec_eval]");
+		printf("[exec_eval, expr = %p, env = %p, output = %p, continuation = %p]", E->data.val_eval.expr, E->data.val_eval.env, E->data.val_eval.output, E->data.val_eval.continuation );
+	} else if (SchemeObject_is_exec_evalseq(E) ) {
+		printf("[exec_evalseq, expr = %p, env = %p, output = %p, continuation = %p]", E->data.val_eval.expr, E->data.val_eval.env, E->data.val_eval.output, E->data.val_eval.continuation );
 	} else if (SchemeObject_is_atomic_function(E) ) {
 		printf("{atomic_function}");
 	} else if (SchemeObject_is_composite_function(E) ) {
@@ -663,7 +667,7 @@ int env_set_existing_binding(MemorySpace * ms, SchemeObject * env, SchemeObject 
 	
 	assert(binding != NULL);
 	
-	SchemeObject * valueholder = ms->allocate(ms, sizeof(SchemeObject));
+	SchemeObject * valueholder = SchemeObject_make_empty(ms);//ms->allocate(ms, sizeof(SchemeObject));
 	SchemeObject_copy(ms, valueholder, value);
 	
 	/* useless return value as copies should always succeed */
@@ -1020,7 +1024,9 @@ int main() {
 	test16();*/
 	//test_printing_base_parser();
 	//test17();  // takes too much memory
-	test18();
+	//test18();
+	//test19();
+	test20();
 	
 	return 0;
 }

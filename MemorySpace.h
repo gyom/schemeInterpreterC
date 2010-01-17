@@ -22,7 +22,7 @@ typedef struct _MemorySpace {
 	void * (* allocate)(struct _MemorySpace *, int); //= &allocate; // &allocate ?
 	void (* destroy)(struct _MemorySpace *); //= &destroy;
 	void (* init)(struct _MemorySpace *, int); // = NULL;
-	
+	int (* needs_reallocation)(struct _MemorySpace *);
 } MemorySpace;
 
 MemorySpace * make_MemorySpace(int n_chunks);

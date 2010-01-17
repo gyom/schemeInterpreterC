@@ -47,6 +47,20 @@ void destroy(struct _MemorySpace * this) {
 	this->n_chunks_used = 0;
 }
 
+int needs_reallocation(struct _MemorySpace * this) {
+	/* 	Using the 0.9 magic number.
+	 	We're assuming that with one operation, it's impossible that
+	 	we fill up 10% of the memory available. The only problem cases would
+	 	concern very large files, but those would be a problem anyways, to
+	 	be solved by changing the DEFAULT_MEMORY_FOR_MACHINE global definition,
+	 	probably.
+	 */
+	if (0.9 * (this->n_chunks_total) <= (this->n_chunks_used))
+		return 1;
+	else
+		return 0;
+}
+
 MemorySpace * make_MemorySpace(int n_chunks) {
 	MemorySpace * myspace = malloc(sizeof(MemorySpace));
 	/*	We're using NULL at many places to indicate that a pointer
@@ -58,6 +72,7 @@ MemorySpace * make_MemorySpace(int n_chunks) {
 	myspace->allocate = &allocate;
 	myspace->destroy = &destroy;
 	myspace->init = &init;
+	myspace->needs_reallocation = &needs_reallocation;
 	myspace->init(myspace, n_chunks);
 	return myspace;
 }

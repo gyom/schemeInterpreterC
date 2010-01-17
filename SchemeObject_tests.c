@@ -636,8 +636,8 @@ void test_printing_base_parser() {
 
 void test17() {
 	printf("-----test17 : first parsed assertions -----\n");
-	MemorySpace * ms = make_MemorySpace(DEFAULT_MEMORY_FOR_MACHINE);
-	SchemeObject * env = make_base_parser_environment(ms);
+	//MemorySpace * ms = make_MemorySpace(DEFAULT_MEMORY_FOR_MACHINE);
+	//SchemeObject * env = make_base_parser_environment(ms);
 	
 	/*
 	 ((lambda ()
@@ -677,10 +677,24 @@ void test17() {
 					"		(display \"le chien est encore con.\")				"
 					")";												
 		
+	
+	//char * str = "(list 1 2 3 (list 4 5) (list 6 7 8))";
+	
+	//char * str = "((lambda (x) (display \"hello\") (+ 1 x)) 7.2)";
+	
+	/*
 	SchemeObject * L = SchemeObject_make_list_2(ms, 	SchemeObject_make_symbol(ms,"parse"),
 														SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "string->list"), SchemeObject_make_string(ms, str)));
 	SchemeObject * compiled_code_Sn1m = evaluate(ms, L, env);
 	evaluate(ms, compiled_code_Sn1m, env);
+	*/
+	
+	MemorySpace * ms;
+	SchemeObject * out = sn1t_automem_parse_evaluate(str, &ms);
+	//SchemeObject_print(sn1t_automem_parse_evaluate(str, &ms));
+	printf("\n");
+	SchemeObject_print(out);
+	printf("\n");
 	
 	ms->destroy(ms);
 	return;
@@ -706,13 +720,228 @@ void test18() {
 	printf("I   : ");	SchemeObject_print(evaluated_L);	printf("\n");
 	printf("II  : ");	SchemeObject_print(evaluated_L_t);	printf("\n");
 	printf("Ie  : ");	SchemeObject_print(evaluate(ms, evaluated_L, env)); 			printf("\n");
+	
 	printf("IIe : ");	SchemeObject_print(evaluate(new_ms, evaluated_L_t, env_t)); 	printf("\n");
 	printf("\n");
 	
 	
+	assert(GarbageCollector_stackabuse_checkisomorphism(evaluated_L, evaluated_L_t, 0, 100));
+	//assert(GarbageCollector_stackabuse_checkisomorphism(env, env_t));
 	//assert(SchemeObject_eq(evaluated_L, evaluated_L_t)); // won't work for lists
 	
 	ms->destroy(ms);
-	ms->destroy(new_ms);
+	new_ms->destroy(new_ms);
+		   
+	return;
+}
+
+/* not working alright, but I want to trim the code a bit */
+void test19() {
+	printf("-----test19 : garbage collection -----\n");
+	MemorySpace * ms = make_MemorySpace(DEFAULT_MEMORY_FOR_MACHINE);
+	SchemeObject * env = make_base_parser_environment(ms);
+	
+	/*
+	char * str = "(list 1 2 (list \"chien\" 4 5) (quote arbre) (list 6 7))";
+	SchemeObject * L = SchemeObject_make_list_2(ms, 	SchemeObject_make_symbol(ms,"parse"),
+												SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "string->list"), SchemeObject_make_string(ms, str)));
+	*/
+	
+	/* let's try this instead */
+	char * str = "((lambda (x) (display \"allo\") (+ 1 x)) 7)";
+	SchemeObject * L = SchemeObject_make_list_2(ms, 	SchemeObject_make_symbol(ms,"parse"),
+												SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "string->list"), SchemeObject_make_string(ms, str)));
+	printf("will evaluate the basic expressions\n");
+	SchemeObject * expr = evaluate(ms, L, env);	
+	SchemeObject_print(L);		printf("\n");
+	SchemeObject_print(expr);	printf("\n");
+	
+	SchemeObject * parsed_expr = SchemeObject_make_empty(ms);
+	SchemeObject * continuation = SchemeObject_make_exec_eval(ms, expr, env, parsed_expr, NULL);
+	//SchemeObject * continuation = SchemeObject_make_exec_eval(ms, expr, env, SchemeObject_make_empty(ms), NULL);
+	
+	int i=0; int threshold = 2;
+	do {
+		continuation = execute(ms, continuation);
+		//printf("main loop will execute : %p\n", continuation);
+		if (i++ > threshold) {
+			printf("threshold reached, breaking with non-null continuation\n");
+			break;
+		}
+	} while(continuation != NULL);
+	
+	MemorySpace * new_ms = make_MemorySpace(DEFAULT_MEMORY_FOR_MACHINE);
+	SchemeObject * data_to_track = SchemeObject_make_list_4(ms, expr, parsed_expr, continuation, SchemeObject_make_string(ms, "lupitron"));
+	printf("data_to_track = %p, parsed_expr = %p, exec bloc output = %p\n", data_to_track, parsed_expr, SchemeObject_exec_get_output(continuation));
+	SchemeObject * transferred_data_to_track = GarbageCollection_floodfill_move_to_new_MemorySpace(new_ms, data_to_track);
+	SchemeObject * expr_t = SchemeObject_list_ref_n(transferred_data_to_track,1);
+	SchemeObject * parsed_expr_t = SchemeObject_list_ref_n(transferred_data_to_track,2);
+	SchemeObject * continuation_t = SchemeObject_list_ref_n(transferred_data_to_track,3);
+	SchemeObject * lupitron_t = SchemeObject_list_ref_n(transferred_data_to_track,4);
+	assert(SchemeObject_eq(SchemeObject_list_ref_n(transferred_data_to_track,4), SchemeObject_list_ref_n(data_to_track,4)));
+	printf("transferred_data_to_track = %p, parsed_expr_t = %p, exec bloc output _t = %p\n", transferred_data_to_track, parsed_expr_t, SchemeObject_exec_get_output(continuation_t));
+	
+	assert(GarbageCollector_stackabuse_checkisomorphism(expr, expr_t, 0, 10));
+	assert(GarbageCollector_stackabuse_checkisomorphism(parsed_expr, parsed_expr_t, 0, 10));
+	assert(GarbageCollector_stackabuse_checkisomorphism(continuation, continuation_t, 0, 10));
+	//assert(GarbageCollector_stackabuse_checkisomorphism(env, env_t));
+	//assert(SchemeObject_eq(evaluated_L, evaluated_L_t)); // won't work for lists
+	
+	SchemeObject_print_details(expr);		 	printf("\n");
+	SchemeObject_print_details(expr_t); 		printf("\n");
+	SchemeObject_print_details(continuation); 	printf("\n");
+	SchemeObject_print_details(continuation_t); printf("\n");
+	SchemeObject_print_details(parsed_expr); 	printf("\n");
+	SchemeObject_print_details(parsed_expr_t); 	printf("\n");
+
+	int iterations = 0;	int iterations_t = 0;
+	SchemeObject * last_continuation;
+	SchemeObject * last_continuation_t;
+	printf("Attempting to finish the transferred computation after memory reallocation.\n");
+	/*
+	do {
+		if(continuation != NULL) {
+			last_continuation = continuation; // to monitor something
+			continuation = execute(ms, continuation);
+			iterations++;
+		}
+		if(continuation_t != NULL) {
+			last_continuation_t = continuation_t; // to monitor something
+			continuation_t = execute(new_ms, continuation_t);
+			iterations_t++;
+		}
+		//assert(GarbageCollector_stackabuse_checkisomorphism(expr, expr_t, 0, 10));
+		//assert(GarbageCollector_stackabuse_checkisomorphism(parsed_expr, parsed_expr_t, 0, 10));
+		//assert(GarbageCollector_stackabuse_checkisomorphism(continuation, continuation_t, 0, 10));
+	} while((continuation != NULL) || (continuation_t != NULL));
+	*/
+	do {
+		if(continuation != NULL) {
+			last_continuation = continuation; // to monitor something
+			continuation = execute(ms, continuation);
+			iterations++;
+		}
+	} while(continuation != NULL);
+	ms->destroy(ms);
+	do {
+		if(continuation_t != NULL) {
+			last_continuation_t = continuation_t; // to monitor something
+			continuation_t = execute(new_ms, continuation_t);
+			iterations_t++;
+		}
+	} while(continuation_t != NULL);
+	SchemeObject_print_details(parsed_expr_t); 	printf("\n");
+
+	assert(SchemeObject_eq(SchemeObject_list_ref_n(transferred_data_to_track,4), SchemeObject_list_ref_n(data_to_track,4)));
+	//assert(SchemeObject_eq(SchemeObject_list_ref_n(transferred_data_to_track,3), SchemeObject_list_ref_n(data_to_track,3)));
+	
+	printf("iterations = %d, iterations_t = %d. Both should be the same value.\n", iterations, iterations_t);
+	assert(iterations == iterations_t);
+	
+	printf("data_to_track = %p, parsed_expr = %p, exec bloc output = %p,  last exec bloc output = %p\n", data_to_track, parsed_expr, SchemeObject_exec_get_output(continuation), SchemeObject_exec_get_output(last_continuation));
+	printf("transferred_data_to_track = %p, parsed_expr_t = %p, exec bloc output _t = %p, last exec bloc output _t = %p\n", transferred_data_to_track, parsed_expr_t, SchemeObject_exec_get_output(continuation_t), SchemeObject_exec_get_output(last_continuation_t));
+	
+	
+	printf("last continuations : \n");
+	SchemeObject_print_details(last_continuation);	 	printf("\n");
+	SchemeObject_print_details(last_continuation_t); 	printf("\n");
+	printf("expressions : \n");
+	SchemeObject_print_details(expr); 	printf("\n");
+	SchemeObject_print_details(expr_t); 	printf("\n");
+	SchemeObject_print_details(parsed_expr); 	printf("\n");
+	SchemeObject_print_details(parsed_expr_t); 	printf("\n");
+	
+	assert(GarbageCollector_stackabuse_checkisomorphism(expr, expr_t, 0, 10));
+	assert(GarbageCollector_stackabuse_checkisomorphism(parsed_expr, parsed_expr_t, 0, 10));
+	assert(GarbageCollector_stackabuse_checkisomorphism(continuation, continuation_t, 0, 10));
+	
+	ms->destroy(ms);
+	new_ms->destroy(new_ms);
+	
+	return;
+}
+
+void test20() {
+	printf("-----test20 : garbage collection -----\n");
+	MemorySpace * ms = make_MemorySpace(DEFAULT_MEMORY_FOR_MACHINE);
+	SchemeObject * env = make_base_parser_environment(ms);
+	
+	/*char * str = 	"(lambda ()											"
+	"		(define A (cons 1 (cons 2 empty)))					"
+	"		(define f (lambda (x y) (* x (+ y -7))))			"
+	"															"
+	"		(assert (eq? (car A) 1))							"
+	"		(assert (not (eq? (car A) 2)))						"
+	"		(assert (eq? (car (cdr (car A))) 2))				"
+	"		(assert (empty? empty))								"
+	"		(assert (eq? 3 (+ 1 1 1)))							"
+	"															"
+	"		(assert (eq? (f (car A) 0) -7))						"
+	"		(assert (eq? (f 12 (car A)) -72))					"
+	"															"
+	"		(display \"le Chien est con !\")					"
+	"		(newline)											"
+	"		(display \"le chien est encore con.\")				"
+	")";*/	
+	char * str = "((lambda (x) (display \"allo\") (+ 1 x)) 7)";
+	SchemeObject * L = SchemeObject_make_list_2(ms, 	SchemeObject_make_symbol(ms,"parse"),
+												SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "string->list"), SchemeObject_make_string(ms, str)));
+	printf("will evaluate the basic expressions\n");
+	SchemeObject * expr = evaluate(ms, L, env);	
+	SchemeObject_print(L);		printf("\n");
+	SchemeObject_print(expr);	printf("\n");
+	
+	SchemeObject * output = SchemeObject_make_empty(ms);
+	env = SchemeObject_make_pair(ms, SchemeObject_make_list_1(ms, SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "OUTPUT"), output)), env);
+	SchemeObject * continuation = SchemeObject_make_exec_eval(ms, expr, env, output, NULL);
+	//SchemeObject * continuation = SchemeObject_make_exec_eval(ms, expr, env, SchemeObject_make_empty(ms), NULL);
+	
+	int i=0; int threshold = 1;
+	do {
+		continuation = execute(ms, continuation);
+		//printf("main loop will execute : %p\n", continuation);
+		if (i++ > threshold) {
+			printf("threshold reached, breaking with non-null continuation\n");
+			break;
+		}
+	} while(continuation != NULL);
+	
+	MemorySpace * new_ms = make_MemorySpace(DEFAULT_MEMORY_FOR_MACHINE);
+	SchemeObject * data_to_track = SchemeObject_make_pair(ms, output, SchemeObject_make_pair(ms, continuation, SchemeObject_make_pair(ms, output, SchemeObject_make_empty(ms))));
+	//SchemeObject * data_to_track = SchemeObject_make_list_3(ms, output, continuation, output);
+	SchemeObject * data_to_track_t = GarbageCollection_floodfill_move_to_new_MemorySpace(new_ms, data_to_track);
+	//continuation = GarbageCollection_floodfill_move_to_new_MemorySpace(new_ms, continuation);
+	SchemeObject * output_t = SchemeObject_list_ref_n(data_to_track_t,1);
+	continuation = SchemeObject_list_ref_n(data_to_track_t,2);
+	SchemeObject * output_t2 = SchemeObject_list_ref_n(data_to_track_t,3);
+	
+	printf("data_to_track = %p\n", data_to_track);
+	printf("data_to_track_t = %p\n", data_to_track_t);
+	printf("output = %p\n", output);
+	printf("output_t = %p\n", output_t);
+	printf("output_t2 = %p\n", output_t2);
+	ms->destroy(ms);
+	ms = new_ms;
+	
+	SchemeObject * last_continuation;
+	printf("Attempting to finish the transferred computation after memory reallocation.\n");
+	do {
+		if(continuation != NULL) {
+			last_continuation = continuation; // to monitor something
+			continuation = execute(ms, continuation);
+		}
+	} while(continuation != NULL);
+
+	printf("last continuations : \n");
+	SchemeObject_print_details(last_continuation);	 	printf("\n");
+	
+	SchemeObject_print_details(SchemeObject_exec_get_output(last_continuation));	printf("\n");
+	//printf("expressions : \n");
+	
+	//env = make_base_parser_environment(ms);
+	//evaluate(ms, SchemeObject_make_symbol(ms, "OUTPUT"), env);
+	
+	new_ms->destroy(new_ms);
+	
 	return;
 }

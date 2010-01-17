@@ -123,6 +123,7 @@ int SchemeObject_is_composite_function(SchemeObject * E);
 int SchemeObject_is_exec_apply(SchemeObject * E);
 int SchemeObject_is_exec_eval(SchemeObject * E);
 int SchemeObject_is_exec_evalseq(SchemeObject * E);
+int SchemeObject_is_capturedcontinuation(SchemeObject * E);
 int SchemeObject_is_special_symbol(SchemeObject * E);
 int SchemeObject_is_special_symbol_s(SchemeObject * E, SpecialSymbol S);
 int SchemeObject_is_self_evaluating(SchemeObject * E);
@@ -161,6 +162,10 @@ SchemeObject * make_base_parser_environment(MemorySpace * ms);
 
 void GarbageCollection_reset_redirection_address(SchemeObject * E);
 SchemeObject * GarbageCollection_floodfill_move_to_new_MemorySpace(MemorySpace * new_ms, SchemeObject * start);
+
+SchemeObject * sn1t_automem_parse_evaluate(char * str, MemorySpace ** out_ms);
+int GarbageCollector_stackabuse_checkisomorphism(SchemeObject * A, SchemeObject * B, int currentdepth, int maxdepth);
+SchemeObject * SchemeObject_exec_get_output(SchemeObject * E);
 
 #endif
 
