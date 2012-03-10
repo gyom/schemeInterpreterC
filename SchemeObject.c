@@ -251,6 +251,7 @@ int SchemeObject_is_self_evaluating(SchemeObject * E) {
 	 	that they are ready to be applied to something. */
 	result |= SchemeObject_is_atomic_function(E);
 	result |= SchemeObject_is_composite_function(E);
+	result |= SchemeObject_is_capturedcontinuation(E);
 	return result;
 }
 
@@ -728,9 +729,9 @@ SchemeObject * execute(MemorySpace * ms, SchemeObject * location) {
 			 	always evaluated by the time we reach statements with
 			 	apply executions like here.
 			 */
-			#ifdef DEBUG_EXECUTE
+			#if defined(DEBUG_EXECUTE) || defined(DEBUG_CALLCC)
 				printf("restoring previously captured continuation\n");
-				printf("\ncontinuing to %p instead of %p\n", func->data.val_capturedcontinuation.continuation, continuation);
+				printf("continuing to %p instead of %p\n", func->data.val_capturedcontinuation.continuation, continuation);
 			#endif
 			SchemeObject_copy(ms, func->data.val_capturedcontinuation.output, SchemeObject_first(resolved_args));
 			return func->data.val_capturedcontinuation.continuation;
@@ -853,7 +854,7 @@ SchemeObject * execute(MemorySpace * ms, SchemeObject * location) {
 																   SchemeObject_make_pair(ms, SchemeObject_second(expr),
 																						  SchemeObject_make_pair(ms, k, SchemeObject_make_empty(ms))),
 																   env, output, continuation);
-				#ifdef DEBUG_EXECUTE
+				#if defined(DEBUG_EXECUTE) || defined(DEBUG_CALLCC)
 					printf("capturing continuation going to %p\n", next_task);
 				#endif
 				return next_task;
@@ -1023,11 +1024,13 @@ int main() {
 	test15();
 	test16();*/
 	//test_printing_base_parser();
-	//test17();  // takes too much memory
+	test17();  // takes too much memory
 	//test18();
 	//test19();
-	test20();
-	test21();
+	//test20();
+	//test21();
+	test22();
+	test23();
 	
 	return 0;
 }

@@ -133,6 +133,18 @@ SchemeObject * charQ_wrapper(MemorySpace * ms, SchemeObject * L) {
 	return SchemeObject_make_bool(ms, SchemeObject_is_char(SchemeObject_car(L)));
 }
 
+SchemeObject * continuationQ_wrapper(MemorySpace * ms, SchemeObject * L) {
+	return SchemeObject_make_bool(ms, SchemeObject_is_capturedcontinuation(SchemeObject_car(L)));
+}
+
+SchemeObject * procedureQ_wrapper(MemorySpace * ms, SchemeObject * L) {
+	return SchemeObject_make_bool(ms, SchemeObject_is_atomic_function(SchemeObject_car(L)) || SchemeObject_is_composite_function(SchemeObject_car(L)));
+}
+
+SchemeObject * pairQ_wrapper(MemorySpace * ms, SchemeObject * L) {
+	return SchemeObject_make_bool(ms, SchemeObject_is_pair(SchemeObject_car(L)));
+}
+
 SchemeObject * emptyQ_wrapper(MemorySpace * ms, SchemeObject * L) {
 	return SchemeObject_make_bool(ms, SchemeObject_is_empty(SchemeObject_car(L)));
 	/*SchemeObject * result = SchemeObject_make_bool(ms, SchemeObject_is_empty(SchemeObject_car(L)));
@@ -307,6 +319,11 @@ SchemeObject * assert_wrapper(MemorySpace * ms, SchemeObject * L) {
 	return SchemeObject_make_special_symbol_s(ms, TRUE);
 }
 
+SchemeObject * meminfo_wrapper(MemorySpace * ms, SchemeObject * L) {
+	SchemeObject * result = SchemeObject_make_list_2(ms, SchemeObject_make_integer(ms, ms->n_chunks_used), SchemeObject_make_integer(ms, ms->n_chunks_total));
+	return result;
+}
+
 /*
 SchemeObject * display_wrapper(MemorySpace * ms, SchemeObject * L) {
 	SchemeObject * E = SchemeObject_car(L);
@@ -390,6 +407,9 @@ SchemeObject * make_atomic_functions_frame(MemorySpace * ms) {
 							SchemeObject_make_pair(ms, SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "string?"), SchemeObject_make_atomic_function(ms, & stringQ_wrapper)),
 							SchemeObject_make_pair(ms, SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "char?"), SchemeObject_make_atomic_function(ms, & charQ_wrapper)),
 							SchemeObject_make_pair(ms, SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "number?"), SchemeObject_make_atomic_function(ms, & numberQ_wrapper)),
+  							SchemeObject_make_pair(ms, SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "continuation?"), SchemeObject_make_atomic_function(ms, & continuationQ_wrapper)),
+							SchemeObject_make_pair(ms, SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "procedure?"), SchemeObject_make_atomic_function(ms, & procedureQ_wrapper)),
+							SchemeObject_make_pair(ms, SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "pair?"), SchemeObject_make_atomic_function(ms, & pairQ_wrapper)),
 							SchemeObject_make_pair(ms, SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "print"), SchemeObject_make_atomic_function(ms, & print_wrapper)),
 							SchemeObject_make_pair(ms, SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "print-details"), SchemeObject_make_atomic_function(ms, & print_details_wrapper)),
 							SchemeObject_make_pair(ms, SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "display"), SchemeObject_make_atomic_function(ms, & print_wrapper)),
@@ -408,7 +428,8 @@ SchemeObject * make_atomic_functions_frame(MemorySpace * ms) {
   							SchemeObject_make_pair(ms, SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "reverse"), SchemeObject_make_atomic_function(ms, & reverse_wrapper)),
    							SchemeObject_make_pair(ms, SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "empty?"), SchemeObject_make_atomic_function(ms, & emptyQ_wrapper)),
 							SchemeObject_make_pair(ms, SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "analyze-atomic-string-token"), SchemeObject_make_atomic_function(ms, & analyze_atomic_string_token)),							   
-							SchemeObject_make_empty(ms)))))))))))))))))))))))))));
+   							SchemeObject_make_pair(ms, SchemeObject_make_list_2(ms, SchemeObject_make_symbol(ms, "meminfo"), SchemeObject_make_atomic_function(ms, & meminfo_wrapper)),							   
+							SchemeObject_make_empty(ms)))))))))))))))))))))))))))))));
 	
 	return frame;
 }

@@ -634,6 +634,7 @@ void test_printing_base_parser() {
 	return;
 }
 
+/* first time we get the parser working with sn1t */
 void test17() {
 	printf("-----test17 : first parsed assertions -----\n");
 	//MemorySpace * ms = make_MemorySpace(DEFAULT_MEMORY_FOR_MACHINE);
@@ -660,22 +661,23 @@ void test17() {
 	 */
 	
 	char * str = 	"((lambda ()											"
-					"		(define A (cons 1 (cons 2 empty)))					"
-					"		(define f (lambda (x y) (* x (+ y -7))))			"
-					"															"
-					"		(assert (eq? (car A) 1))							"
-					"		(assert (not (eq? (car A) 2)))						"
-					"		(assert (eq? (car (cdr (car A))) 2))				"
-					"		(assert (empty? empty))								"
-					"		(assert (eq? 3 (+ 1 1 1)))							"
-					"															"
-					"		(assert (eq? (f (car A) 0) -7))						"
-					"		(assert (eq? (f 12 (car A)) -72))					"
-					"															"
-					"		(display \"le Chien est con !\")					"
-					"		(newline)											"
-					"		(display \"le chien est encore con.\")				"
-					"))";												
+	"		(define A (cons 1 (cons 2 empty)))					"
+	"		(define f (lambda (x y) (* x (+ y -7))))			"
+	"															"
+	"		(assert (eq? (car A) 1))							"
+	"		(assert (not (eq? (car A) 2)))						"
+	"		(assert (eq? (car (cdr A)) 2))				"
+	"		(assert (empty? empty))								"
+	"		(assert (eq? 3 (+ 1 1 1)))							"
+	"															"
+	"		(assert (eq? (f (car A) 0) -7))						"
+	"		(assert (eq? (f 12 (car A)) -72))					"
+	"															"
+	"		(display \"le_Chien_est_con_!\")					"
+	"		(newline)											"
+	"		(display \"le_chien_est_encore_con.\")				"
+	"		873423.43											"
+	"))";											
 		
 	
 	//char * str = "(list 1 2 3 (list 4 5) (list 6 7 8))";
@@ -946,6 +948,7 @@ void test20() {
 	return;
 }
 
+/* first time we get the parser working, now let's use it with test17() to make sn1t work */
 void test21() {
 	printf("-----test21 : garbage collection again, simplified -----\n");
 	MemorySpace * ms = make_MemorySpace(DEFAULT_MEMORY_FOR_MACHINE);
@@ -1041,5 +1044,119 @@ void test21() {
 	
 	ms->destroy(ms);
 	
+	return;
+}
+
+void test22() {
+	printf("-----test22 : testing continuations -----\n");
+	
+	/*
+	 	((lambda ()
+	 		(define f	(lambda (x) (not (eq? x 3))))
+	 		(define find (lambda (L f k)
+	 							(if 	(empty? L)
+										empty
+										(if (f (car L))
+	 										(k (car L))
+	 										(find (cdr L) f k)))))
+	 		(define L (list 3 3 3 3 -1 3 3 87.2 3 3))
+	 		(define result (call/cc (lambda (k) (find L f k))))
+			(display result)
+	 		(newline)
+	 		result
+		 ))
+	 */
+	
+	char * str = 	"((lambda ()"
+	" (define f	(lambda (x) (not (eq? x 3))))"
+	" (define find (lambda (L f k)"
+	" (if 	(empty? L) "
+	" empty"
+	" (if (f (car L))"
+	" (k (car L))"
+	" (find (cdr L) f k)))))"
+	" (define L (list 3 3 3 3 -1 3 3 87.2 3 3))"
+	" (define result (call/cc (lambda (k) (find L f k))))"
+	" (display result)"
+	" (newline)"
+	" result"
+	" ))";											
+	
+	/*char * str = "((lambda ()"
+		"(call/cc (lambda (k) (k 3372.20)))"
+	"))";*/
+	
+	/*char * str = "((lambda (f)"
+	 "(display (meminfo))"
+	 "(f f)"
+	 ") (call/cc (lambda (k) (k k))) )";*/
+	
+	MemorySpace * ms;
+	SchemeObject * out = sn1t_automem_parse_evaluate(str, &ms);
+
+	printf("\n");
+	SchemeObject_print(out);
+	printf("\n");
+	
+	ms->destroy(ms);
+	return;
+}
+
+void test23() {
+	printf("-----test23 : bending continuations further -----\n");
+	
+	/*
+	 (define map
+	 	(lambda (f L)
+	 			(if (empty? L)
+					 empty
+					 (cons (f (car L)) (map f (cdr L))))))
+	 
+	 (define h
+		 (lambda ()
+			(define A
+				(call/cc (lambda (throw)
+					(define f
+	 					(lambda (x)
+	 						(if (eq? x 0)
+	 							(call/cc (lambda (continue) (throw continue)))
+	 							(* 7 x))))
+	 							(map f (list 1 0 2 3 0)))))
+	 							(if (continuation? A)
+	 								(A 'lupi)
+	 								A)))
+	 */
+	
+	char * str = "((lambda ()															"
+	"		(define map																	"
+	"				  (lambda (f L)														"
+	"				   (if (empty? L)													"
+	"					empty															"
+	"					(cons (f (car L)) (map f (cdr L))))))							"
+	"																					"
+	"		(define h																	"
+	" 			(lambda ()																"
+	"  				(define A															"
+	"   				(call/cc (lambda (throw)										"
+	"			 			(define f													"
+	"			  				(lambda (x)												"
+	"			   					(if (eq? x 0)										"
+	"									(call/cc (lambda (continue) (throw continue)))	"
+	"									(* 7 x))))										"
+	"			 					(map f (list 1 0 2 3 0)))))							"
+	"  				(if (continuation? A)												"
+	"   				(A -1)															"
+	"					A)))															"
+	"		(h)																			"
+	"))";
+	
+	MemorySpace * ms;
+	SchemeObject * out = sn1t_automem_parse_evaluate(str, &ms);
+	
+	printf("\n");
+	SchemeObject_print(out);
+	printf("\n");
+	
+	ms->destroy(ms);
 	return;
 }
